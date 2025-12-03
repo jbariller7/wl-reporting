@@ -1,4 +1,4 @@
-import { etlSteamSalesApi } from "../../lib/etl.js";
+import { runEtls } from "./helpers/run-etl.js";
 
 /**
  * Scheduled function that runs daily at 04:00 UTC.
@@ -12,7 +12,7 @@ export default async (req) => {
   const since = new Date(yesterday.setUTCHours(0, 0, 0, 0)).toISOString();
   const until = new Date(yesterday.setUTCHours(23, 59, 59, 999)).toISOString();
   const range = { sinceUtc: since, untilUtc: until };
-  const steam = await etlSteamSalesApi(range).catch((e) => ({ ok: false, msg: e.message }));
+  const steam = await runEtls(range, ["steam"], { persistCursor: true });
   console.log("cron-daily steam", steam);
 };
 
