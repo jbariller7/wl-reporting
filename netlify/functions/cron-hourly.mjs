@@ -1,9 +1,4 @@
-import {
-  etlStripe,
-  etlMeta,
-  etlTikTok,
-  etlMailerLite
-} from "../../lib/etl.js";
+import { runEtls } from "./helpers/run-etl.js";
 
 /**
  * Scheduled function that runs hourly.
@@ -16,12 +11,9 @@ export default async (req) => {
   const since = new Date(now.getTime() - 1000 * 60 * 60 * 48).toISOString();
   const until = now.toISOString();
   const range = { sinceUtc: since, untilUtc: until };
-  const results = {
-    stripe: await etlStripe(range).catch((e) => ({ ok: false, msg: e.message })),
-    meta: await etlMeta(range).catch((e) => ({ ok: false, msg: e.message })),
-    tiktok: await etlTikTok(range).catch((e) => ({ ok: false, msg: e.message })),
-    mailerlite: await etlMailerLite(range).catch((e) => ({ ok: false, msg: e.message }))
-  };
+  const results = await runEtls(range, ["stripe", "meta", "tiktok", "mailerlite"], {
+    persistCursor: true
+  });
   console.log("cron-hourly results", results);
 };
 
