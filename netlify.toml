@@ -2,10 +2,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-[[functions."cron-hourly"]]
+[functions."cron-hourly"]
   schedule = "@hourly"
 
-[[functions."cron-daily"]]
+[functions."cron-daily"]
   schedule = "0 4 * * *"
 
 [build]
