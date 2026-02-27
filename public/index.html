@@ -165,7 +165,7 @@
     <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 class="text-xl font-bold mb-2">Manage Regions</h3>
-            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code>. A country can be in multiple regions (e.g. put CH in DACH and Francophone).</p>
+            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code>. A country can be in multiple regions.</p>
             <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;Francophone = FR, BE, CH"></textarea>
             <div class="flex justify-end gap-2">
                 <button onclick="closeRegionModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
@@ -183,7 +183,7 @@
             try { return regionNames.of(code) || code; } catch (e) { return code; }
         }
 
-        // --- 2. Dynamic Region Management (MULTIPLE REGIONS SUPPORT) ---
+        // --- 2. Dynamic Region Management ---
         let REGIONS = {};
         const DEFAULT_REGIONS = "DACH = DE, AT, CH\nNorth America = US, CA\nUK = GB, UK\nFrancophone = FR, BE, CH\nHispanophone = ES, MX, AR";
 
@@ -191,7 +191,7 @@
             const saved = localStorage.getItem('wl-regions') || DEFAULT_REGIONS;
             document.getElementById('region-text').value = saved;
             
-            REGIONS = {}; // Now an object of arrays: { 'CH': ['DACH', 'Francophone'] }
+            REGIONS = {}; 
             saved.split('\n').forEach(line => {
                 if (!line.includes('=')) return;
                 const [regName, codes] = line.split('=');
@@ -274,9 +274,18 @@
         const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
         const TAX_RATE = 0.125;
         const STEAM_CUT = 0.30;
-        const RATES = { 'usd': 0.92, 'eur': 1.0, 'jpy': 0.0061, 'gbp': 1.17 };
         
-        function toEur(amount, curr) { return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); }
+        // Expanded rates array. Added KRW, AUD, CAD, etc.
+        const RATES = { 
+            'usd': 0.92, 'eur': 1.0, 'gbp': 1.17, 
+            'jpy': 0.0061, 'krw': 0.00069, 'aud': 0.60, 
+            'cad': 0.68, 'chf': 1.06, 'cny': 0.13, 
+            'brl': 0.18, 'mxn': 0.054, 'inr': 0.011 
+        };
+        
+        function toEur(amount, curr) { 
+            return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); 
+        }
 
         let myChart = null;
         let countryAggData = []; 
@@ -330,13 +339,11 @@
                 const d = normalizeDate(date);
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
                 
-                // Now an array of regions, or empty array
                 const regionNames = REGIONS[cCode] || [];
 
                 if (cCode !== 'UNKNOWN') dropdownOptions.add(cCode);
                 regionNames.forEach(rn => dropdownOptions.add(`REGION:${rn}`));
 
-                // Check UI filter
                 let isFilteredIn = false;
                 if (filterSelection === 'ALL') {
                     isFilteredIn = true;
@@ -375,15 +382,25 @@
             });
 
             mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            
+            // Steam processing: net_revenue is ALWAYS tracked in USD in your backend, regardless of country
             steam.forEach(r => {
-                const eurRev = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
+                const eurRev = toEur(parseFloat(r.net_revenue || 0), 'usd');
                 addMetric(r.date, 'net', eurRev * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country);
             });
+            
+            // Stripe processing with Zero-Decimal Currency Support
             stripe.forEach(r => {
                 if (r.status === 'unpaid') return;
-                const amt = toEur(parseFloat(r.amount || 0) / 100, r.currency);
-                addMetric(r.created_at, 'net', amt * (1 - TAX_RATE), r.country);
+                const curr = (r.currency || 'eur').toLowerCase();
+                // Check if the currency doesn't use decimals (Stripe provides KRW/JPY in full units, not cents)
+                const isZeroDecimal = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr);
+                const amt = isZeroDecimal ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                
+                const eurRev = toEur(amt, curr);
+                addMetric(r.created_at, 'net', eurRev * (1 - TAX_RATE), r.country);
             });
+            
             paypal.forEach(r => {
                 const amt = toEur(parseFloat(r.amout || r.amount || 0), r.currency);
                 addMetric(r.date, 'net', amt * (1 - TAX_RATE), r.country);
@@ -481,8 +498,6 @@
             tbody.innerHTML = countryAggData.map(c => {
                 const roasColor = getRankColor(c.roas, sortedRoas, true);
                 const cpsColor = c.subs > 0 ? getRankColor(c.cps, sortedCps, false) : 'transparent';
-                
-                // Show regions in a clean tag format (comma separated inside brackets)
                 const regionTag = c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : '';
 
                 return `
