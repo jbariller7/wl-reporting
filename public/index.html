@@ -17,6 +17,8 @@
         .log-info { color: #aaaaaa; }
         th { user-select: none; }
         th:hover { background-color: #e5e7eb; }
+        /* Modal background */
+        .modal-bg { background-color: rgba(0, 0, 0, 0.5); }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
@@ -46,13 +48,22 @@
                     <input type="date" id="dash-end" class="border rounded p-2 text-sm w-40">
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Country / Region</label>
+                    <select id="dash-country" class="border rounded p-2 text-sm w-48">
+                        <option value="ALL">All Locations</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
                     <button onclick="loadDashboardData()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
-                        Load / Refresh Data
+                        Load Data
+                    </button>
+                    <button onclick="openRegionModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition">
+                        ⚙️ Regions
                     </button>
                 </div>
                 <div class="text-xs text-gray-400 ml-auto pb-2 text-right">
                     *Excludes 'unpaid' Stripe sessions<br>
-                    *Net Revenue deducts Steam 30% & flat 12.5% Tax
+                    *Net deducts Steam 30% & 12.5% Tax
                 </div>
             </div>
 
@@ -66,7 +77,7 @@
                     <div class="text-xl font-bold text-gray-800" id="kpi-net">€0.00</div>
                 </div>
                 <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">New Subscribers</div>
+                    <div class="text-xs text-gray-500 font-medium uppercase">Subscribers</div>
                     <div class="text-xl font-bold text-gray-800" id="kpi-subs">0</div>
                 </div>
                 <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-400">
@@ -115,7 +126,6 @@
                         <input type="date" id="until" class="border rounded p-2 text-sm">
                     </div>
                 </div>
-                
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL</button>
                     <button onclick="triggerUpdate('fetch-stripe')" class="bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Stripe</button>
@@ -125,7 +135,6 @@
                     <button onclick="triggerUpdate('fetch-steam-sales')" class="bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">Steam</button>
                 </div>
             </div>
-
             <h3 class="font-bold text-gray-700 mb-2">Terminal Output</h3>
             <div class="console-container mb-10" id="console">
                 <div class="log-info">System ready. Awaiting commands...</div>
@@ -134,17 +143,68 @@
 
     </div>
 
-    <script>
-        // --- Custom Country Groupings ---
-        // Edit this object to group countries for your specific ad targeting strategies
-        const REGIONS = {
-            'DE': 'DACH', 'AT': 'DACH', 'CH': 'DACH',
-            'US': 'North America', 'CA': 'North America',
-            'GB': 'UK', 'UK': 'UK',
-            'FR': 'Francophone', 'BE': 'Francophone'
-        };
+    <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-xl font-bold mb-2">Manage Regions</h3>
+            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code> (e.g., DACH = DE, AT, CH)</p>
+            <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;North America = US, CA"></textarea>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeRegionModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                <button onclick="saveRegions()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
+            </div>
+        </div>
+    </div>
 
-        // --- UI Logic ---
+    <script>
+        // --- 1. Dynamic Region Management ---
+        let REGIONS = {};
+        const DEFAULT_REGIONS = "DACH = DE, AT, CH\nNorth America = US, CA\nUK = GB, UK\nFrancophone = FR, BE";
+
+        function loadRegions() {
+            const saved = localStorage.getItem('wl-regions') || DEFAULT_REGIONS;
+            document.getElementById('region-text').value = saved;
+            
+            REGIONS = {};
+            saved.split('\n').forEach(line => {
+                if (!line.includes('=')) return;
+                const [regName, codes] = line.split('=');
+                codes.split(',').forEach(c => {
+                    REGIONS[c.trim().toUpperCase()] = regName.trim();
+                });
+            });
+        }
+
+        function openRegionModal() {
+            document.getElementById('region-modal').classList.remove('hidden');
+        }
+
+        function closeRegionModal() {
+            document.getElementById('region-modal').classList.add('hidden');
+        }
+
+        function saveRegions() {
+            const text = document.getElementById('region-text').value;
+            localStorage.setItem('wl-regions', text);
+            closeRegionModal();
+            loadRegions();
+            loadDashboardData(); // Reload data with new region mapping
+        }
+
+        // Initialize regions on boot
+        loadRegions();
+
+        // --- 2. Color Heatmap Logic ---
+        // Generates an HSL color from red to green. goodIsHigh = true means Green for high numbers.
+        function getColorForValue(val, min, max, goodIsHigh) {
+            if (min === max || val == null || val === 0) return 'transparent'; // No color for 0 or identical
+            let ratio = (val - min) / (max - min);
+            if (!goodIsHigh) ratio = 1 - ratio; // Invert for things like Cost/Sub (Low is green)
+            // 0 is Red, 120 is Green in HSL
+            const hue = ratio * 120;
+            return `hsl(${hue}, 80%, 85%)`; // 85% lightness for pastel background
+        }
+
+        // --- UI Tabs ---
         function switchTab(tab) {
             document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
             document.getElementById('view-sync').classList.toggle('hidden', tab !== 'sync');
@@ -158,17 +218,15 @@
         const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
         const TAX_RATE = 0.125;
         const STEAM_CUT = 0.30;
-        
-        // Accurate Exchange Rates Map (To EUR)
         const RATES = { 'usd': 0.92, 'eur': 1.0, 'jpy': 0.0061, 'gbp': 1.17 };
+        
         function toEur(amount, curr) {
-            const c = (curr || 'eur').toLowerCase();
-            return amount * (RATES[c] || 1);
+            return amount * (RATES[(curr || 'eur').toLowerCase()] || 1);
         }
 
         let myChart = null;
-        let countryAggData = []; // Holds data for the sortable table
-        let currentSort = { col: 'spend', desc: true };
+        let countryAggData = []; 
+        let currentSort = { col: 'roas', desc: true }; // Default sort by ROAS
 
         async function fetchSheet(sheetName) {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
@@ -199,24 +257,37 @@
 
             const startDate = document.getElementById('dash-start').value || "2000-01-01";
             const endDate = document.getElementById('dash-end').value || "2099-12-31";
+            const filterSelection = document.getElementById('dash-country').value;
 
             let totalSpend = 0, totalNet = 0, totalSubs = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
+            const dropdownOptions = new Set();
 
-            const getAgg = (country) => {
-                const c = (country || 'UNKNOWN').toUpperCase();
-                if (!countryAgg[c]) countryAgg[c] = { country: c, region: REGIONS[c] || 'Other', spend: 0, net: 0, subs: 0 };
-                return countryAgg[c];
-            };
-
-            const addMetric = (date, metric, val, country) => {
+            const addMetric = (date, metric, val, countryCode) => {
                 if (!date || isNaN(val)) return;
                 const d = normalizeDate(date);
-                if (d >= startDate && d <= endDate) {
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionName = REGIONS[cCode] || 'Other';
+
+                // Save options for dropdown filter
+                if (cCode !== 'UNKNOWN') dropdownOptions.add(cCode);
+                if (regionName !== 'Other') dropdownOptions.add(`REGION:${regionName}`);
+
+                // Check UI filter
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = (regionName === filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (d >= startDate && d <= endDate && isFilteredIn) {
+                    // Daily Chart Data
                     if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
                     dailyData[d][metric] += val;
-                    getAgg(country)[metric] += val;
+                    
+                    // Table Data (Grouped by country inside the filter)
+                    if (!countryAgg[cCode]) countryAgg[cCode] = { country: cCode, region: regionName, spend: 0, net: 0, subs: 0 };
+                    countryAgg[cCode][metric] += val;
                     
                     if (metric === 'spend') totalSpend += val;
                     if (metric === 'net') totalNet += val;
@@ -227,36 +298,38 @@
             // Process Data
             meta.forEach(r => addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country));
             mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            
             steam.forEach(r => {
-                const eurRevenue = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
-                const finalNet = eurRevenue * (1 - STEAM_CUT) * (1 - TAX_RATE);
-                addMetric(r.date, 'net', finalNet, r.country);
+                const eurRev = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
+                addMetric(r.date, 'net', eurRev * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country);
             });
-
             stripe.forEach(r => {
-                if (r.status === 'unpaid') return; // FIX: Ignore abandoned carts
-                const amt = parseFloat(r.amount || 0) / 100;
-                const eurRevenue = toEur(amt, r.currency);
-                const finalNet = eurRevenue * (1 - TAX_RATE);
-                addMetric(r.created_at, 'net', finalNet, r.country);
+                if (r.status === 'unpaid') return;
+                const amt = toEur(parseFloat(r.amount || 0) / 100, r.currency);
+                addMetric(r.created_at, 'net', amt * (1 - TAX_RATE), r.country);
             });
-
             paypal.forEach(r => {
-                const amt = parseFloat(r.amout || r.amount || 0); // Handles the typo
-                const eurRevenue = toEur(amt, r.currency);
-                const finalNet = eurRevenue * (1 - TAX_RATE);
-                addMetric(r.date, 'net', finalNet, r.country);
+                const amt = toEur(parseFloat(r.amout || r.amount || 0), r.currency);
+                addMetric(r.date, 'net', amt * (1 - TAX_RATE), r.country);
             });
 
-            // Update Top KPIs
+            // Update Dropdown Filter
+            const select = document.getElementById('dash-country');
+            const currentFilter = select.value;
+            select.innerHTML = '<option value="ALL">All Locations</option>';
+            Array.from(dropdownOptions).sort().forEach(opt => {
+                const label = opt.startsWith('REGION:') ? `🌍 ${opt.replace('REGION:', '')} (Region)` : `🇺🇳 ${opt}`;
+                select.add(new Option(label, opt));
+            });
+            select.value = currentFilter; // Restore selection
+
+            // Update KPIs
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
             document.getElementById('kpi-subs').innerText = totalSubs;
             document.getElementById('kpi-cps').innerText = totalSubs > 0 ? `€${(totalSpend / totalSubs).toFixed(2)}` : '€0.00';
-            document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : 'N/A';
+            document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : '0.00x';
 
-            // Calculate ratios for the table
+            // Calculate Table data
             countryAggData = Object.values(countryAgg).map(c => {
                 c.cps = c.subs > 0 ? c.spend / c.subs : 0;
                 c.roas = c.spend > 0 ? c.net / c.spend : 0;
@@ -265,40 +338,38 @@
 
             renderTable();
 
-            // Render Chart
+            // Render Chart (ROAS vs CPS)
             const sortedDates = Object.keys(dailyData).sort();
+            const roasData = sortedDates.map(d => dailyData[d].spend > 0 ? (dailyData[d].net / dailyData[d].spend) : 0);
+            const cpsData = sortedDates.map(d => dailyData[d].subs > 0 ? (dailyData[d].spend / dailyData[d].subs) : 0);
+
             if (myChart) myChart.destroy();
             myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: sortedDates,
                     datasets: [
-                        { label: 'Net Revenue (€)', data: sortedDates.map(d => dailyData[d].net), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
-                        { label: 'Ad Spend (€)', data: sortedDates.map(d => dailyData[d].spend), borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
-                        { label: 'Subscribers', data: sortedDates.map(d => dailyData[d].subs), type: 'bar', backgroundColor: '#60a5fa', yAxisID: 'y1' }
+                        { label: 'ROAS (x)', data: roasData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                        { label: 'Cost / Sub (€)', data: cpsData, borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.1)', fill: true, tension: 0.3, yAxisID: 'y1' }
                     ]
                 },
                 options: {
                     responsive: true,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left' },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'ROAS (Return on Ad Spend)'} },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Cost / Subscriber (€)'} }
                     }
                 }
             });
 
-            btn.innerText = "Load / Refresh Data";
+            btn.innerText = "Load Data";
         }
 
-        // --- Table Sorting & Rendering Logic ---
+        // --- Table Rendering with Heatmap ---
         function sortTable(col) {
-            if (currentSort.col === col) {
-                currentSort.desc = !currentSort.desc;
-            } else {
-                currentSort.col = col;
-                currentSort.desc = true;
-            }
+            if (currentSort.col === col) currentSort.desc = !currentSort.desc;
+            else { currentSort.col = col; currentSort.desc = true; }
             renderTable();
         }
 
@@ -313,18 +384,35 @@
                 return 0;
             });
 
-            tbody.innerHTML = countryAggData.map(c => `
-                <tr class="border-b hover:bg-gray-50 transition">
+            // Find Min/Max for Heatmaps (Ignore 0s for scale accuracy)
+            const validRoas = countryAggData.filter(c => c.roas > 0).map(c => c.roas);
+            const validCps = countryAggData.filter(c => c.cps > 0).map(c => c.cps);
+            
+            const maxRoas = validRoas.length ? Math.max(...validRoas) : 1;
+            const minRoas = validRoas.length ? Math.min(...validRoas) : 0;
+            
+            const maxCps = validCps.length ? Math.max(...validCps) : 1;
+            const minCps = validCps.length ? Math.min(...validCps) : 0;
+
+            tbody.innerHTML = countryAggData.map(c => {
+                // Determine Heatmap colors
+                // ROAS: High is Good (true)
+                const roasColor = getColorForValue(c.roas, minRoas, maxRoas, true);
+                // CPS: Low is Good (false) - Note: Only color it if they actually got subs
+                const cpsColor = c.subs > 0 ? getColorForValue(c.cps, minCps, maxCps, false) : 'transparent';
+
+                return `
+                <tr class="border-b transition">
                     <td class="p-3 font-medium text-gray-800">
                         ${c.country} <span class="text-xs text-gray-400 ml-1">(${c.region})</span>
                     </td>
                     <td class="p-3 text-right text-red-600">€${c.spend.toFixed(2)}</td>
                     <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
                     <td class="p-3 text-right text-blue-600 font-bold">${c.subs}</td>
-                    <td class="p-3 text-right text-gray-600">€${c.cps.toFixed(2)}</td>
-                    <td class="p-3 text-right ${c.roas >= 1 ? 'text-green-600 font-bold' : 'text-gray-500'}">${c.roas.toFixed(2)}x</td>
+                    <td class="p-3 text-right text-gray-800 font-medium" style="background-color: ${cpsColor}">€${c.cps.toFixed(2)}</td>
+                    <td class="p-3 text-right text-gray-800 font-bold" style="background-color: ${roasColor}">${c.roas.toFixed(2)}x</td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         window.onload = () => {
@@ -337,7 +425,6 @@
         };
 
         // --- ETL Sync Logic ---
-        // (Keep your triggerUpdate and logToConsole functions exactly as they were here)
         function logToConsole(message, type = 'info') {
             const consoleDiv = document.getElementById('console');
             const time = new Date().toLocaleTimeString();
