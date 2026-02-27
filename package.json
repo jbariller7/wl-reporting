@@ -16,8 +16,7 @@
  
     "@netlify/functions": "^2.8.1"
   },
-  "scripts": {
-    "build:db": "node scripts/migrate.js",
-    "migrate": "node scripts/migrate.js"
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
