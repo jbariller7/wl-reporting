@@ -165,8 +165,8 @@
     <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 class="text-xl font-bold mb-2">Manage Regions</h3>
-            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code> (e.g., DACH = DE, AT, CH)</p>
-            <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;North America = US, CA"></textarea>
+            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code>. A country can be in multiple regions (e.g. put CH in DACH and Francophone).</p>
+            <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;Francophone = FR, BE, CH"></textarea>
             <div class="flex justify-end gap-2">
                 <button onclick="closeRegionModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
                 <button onclick="saveRegions()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
@@ -183,20 +183,22 @@
             try { return regionNames.of(code) || code; } catch (e) { return code; }
         }
 
-        // --- 2. Dynamic Region Management ---
+        // --- 2. Dynamic Region Management (MULTIPLE REGIONS SUPPORT) ---
         let REGIONS = {};
-        const DEFAULT_REGIONS = "DACH = DE, AT, CH\nNorth America = US, CA\nUK = GB, UK\nFrancophone = FR, BE";
+        const DEFAULT_REGIONS = "DACH = DE, AT, CH\nNorth America = US, CA\nUK = GB, UK\nFrancophone = FR, BE, CH\nHispanophone = ES, MX, AR";
 
         function loadRegions() {
             const saved = localStorage.getItem('wl-regions') || DEFAULT_REGIONS;
             document.getElementById('region-text').value = saved;
             
-            REGIONS = {};
+            REGIONS = {}; // Now an object of arrays: { 'CH': ['DACH', 'Francophone'] }
             saved.split('\n').forEach(line => {
                 if (!line.includes('=')) return;
                 const [regName, codes] = line.split('=');
                 codes.split(',').forEach(c => {
-                    REGIONS[c.trim().toUpperCase()] = regName.trim();
+                    const cleanCode = c.trim().toUpperCase();
+                    if (!REGIONS[cleanCode]) REGIONS[cleanCode] = [];
+                    REGIONS[cleanCode].push(regName.trim());
                 });
             });
         }
@@ -279,7 +281,7 @@
         let myChart = null;
         let countryAggData = []; 
         let currentSort = { col: 'roas', desc: true }; 
-        let globalDashboardState = {}; // Used to copy data for Gemini
+        let globalDashboardState = {};
 
         async function fetchSheet(sheetName) {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
@@ -313,11 +315,9 @@
             const filterSelection = document.getElementById('dash-country').value;
             const excludedRanges = getExcludedDateRanges();
             
-            // Parse Ad Set exclusions
             const rawAdsetFilter = document.getElementById('dash-exclude-adsets').value;
             const excludeAdsets = rawAdsetFilter.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
 
-            // Save state for Gemini export
             globalDashboardState = { startDate, endDate, filterSelection, excludeAdsets, excludedRanges };
 
             let totalSpend = 0, totalNet = 0, totalSubs = 0;
@@ -329,22 +329,32 @@
                 if (!date || isNaN(val)) return;
                 const d = normalizeDate(date);
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
-                const regionName = REGIONS[cCode] || 'Other';
+                
+                // Now an array of regions, or empty array
+                const regionNames = REGIONS[cCode] || [];
 
                 if (cCode !== 'UNKNOWN') dropdownOptions.add(cCode);
-                if (regionName !== 'Other') dropdownOptions.add(`REGION:${regionName}`);
+                regionNames.forEach(rn => dropdownOptions.add(`REGION:${rn}`));
 
+                // Check UI filter
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = (regionName === filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection === 'ALL') {
+                    isFilteredIn = true;
+                } else if (filterSelection.startsWith('REGION:')) {
+                    const targetRegion = filterSelection.replace('REGION:', '');
+                    isFilteredIn = regionNames.includes(targetRegion);
+                } else {
+                    isFilteredIn = (cCode === filterSelection);
+                }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
                     if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
                     dailyData[d][metric] += val;
                     
                     if (!countryAgg[cCode]) countryAgg[cCode] = { 
-                        country: cCode, countryName: getCountryName(cCode), region: regionName, 
+                        country: cCode, 
+                        countryName: getCountryName(cCode), 
+                        region: regionNames.length > 0 ? regionNames.join(', ') : 'Other', 
                         spend: 0, net: 0, subs: 0 
                     };
                     countryAgg[cCode][metric] += val;
@@ -365,18 +375,15 @@
             });
 
             mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            
             steam.forEach(r => {
                 const eurRev = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
                 addMetric(r.date, 'net', eurRev * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country);
             });
-            
             stripe.forEach(r => {
                 if (r.status === 'unpaid') return;
                 const amt = toEur(parseFloat(r.amount || 0) / 100, r.currency);
                 addMetric(r.created_at, 'net', amt * (1 - TAX_RATE), r.country);
             });
-            
             paypal.forEach(r => {
                 const amt = toEur(parseFloat(r.amout || r.amount || 0), r.currency);
                 addMetric(r.date, 'net', amt * (1 - TAX_RATE), r.country);
@@ -424,7 +431,7 @@
 
             if (myChart) myChart.destroy();
             myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
-                type: 'bar', // Changed root type to bar to support mixed charts
+                type: 'bar',
                 data: {
                     labels: sortedDates,
                     datasets: [
@@ -443,7 +450,6 @@
                 }
             });
 
-            // Save global stats for Gemini
             globalDashboardState.totalSpend = totalSpend;
             globalDashboardState.totalNet = totalNet;
             globalDashboardState.totalSubs = totalSubs;
@@ -475,6 +481,8 @@
             tbody.innerHTML = countryAggData.map(c => {
                 const roasColor = getRankColor(c.roas, sortedRoas, true);
                 const cpsColor = c.subs > 0 ? getRankColor(c.cps, sortedCps, false) : 'transparent';
+                
+                // Show regions in a clean tag format (comma separated inside brackets)
                 const regionTag = c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : '';
 
                 return `
@@ -493,7 +501,6 @@
             `}).join('');
         }
 
-        // --- Copy For Gemini Function ---
         function copyForGemini() {
             const btn = document.getElementById('btn-copy-gemini');
             
@@ -545,9 +552,7 @@
             document.getElementById('dash-end').value = today.toISOString().split('T')[0];
             document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
             
-            // Add one empty exclude row by default
             addExcludeRow();
-            
             loadDashboardData();
         };
 
