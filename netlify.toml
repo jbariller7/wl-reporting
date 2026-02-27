@@ -9,4 +9,5 @@
   schedule = "0 4 * * *"
 
 [build]
+  publish = "public"
   command = "echo 'No DB build needed for Google Sheets'"
