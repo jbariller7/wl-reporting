@@ -5,64 +5,116 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WonderLang Data Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
-        h1 { color: #333; }
-        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 600px; margin: 0 auto; }
-        button { padding: 15px 20px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; background-color: #0056b3; color: white; transition: background 0.3s; }
+        body { font-family: Arial, sans-serif; padding: 30px; background-color: #f4f4f9; color: #333; max-width: 900px; margin: 0 auto; }
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .date-pickers { margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; }
+        .date-pickers input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+        button { padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px; background-color: #0056b3; color: white; transition: background 0.3s; }
         button:hover { background-color: #003d82; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        #status { margin-top: 20px; font-weight: bold; color: #d9534f; }
+        
+        /* Console Styles */
+        .console-container { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; height: 300px; overflow-y: auto; text-align: left; }
+        .log-error { color: #ff5555; }
+        .log-warn { color: #ffaa00; }
+        .log-success { color: #55ff55; }
+        .log-info { color: #aaaaaa; }
     </style>
 </head>
 <body>
 
-    <h1>Data Sync Control Panel</h1>
-    <p>Click a button to fetch the latest data and send it to your Google Sheet.</p>
+    <h1 style="text-align: center;">Data Sync Control Panel</h1>
+    
+    <div class="controls">
+        <div class="date-pickers">
+            <label><strong>Fetch Data From:</strong></label>
+            <input type="date" id="since">
+            <label><strong>To:</strong></label>
+            <input type="date" id="until">
+        </div>
+        <p style="text-align: center; font-size: 0.9em; color: #666;">
+            <em>Leave dates blank to default to the last 30 days. For your initial sync, pick a date far in the past.</em>
+        </p>
 
-    <div class="button-grid">
-        <button onclick="triggerUpdate('refresh')">🔄 Update ALL Data</button>
-        <button onclick="triggerUpdate('fetch-stripe')">💳 Update Stripe</button>
-        <button onclick="triggerUpdate('fetch-meta')">📘 Update Meta Ads</button>
-        <button onclick="triggerUpdate('fetch-tiktok')">🎵 Update TikTok Ads</button>
-        <button onclick="triggerUpdate('fetch-mailerlite')">✉️ Update MailerLite</button>
-        <button onclick="triggerUpdate('fetch-steam-sales')">🚂 Update Steam</button>
+        <div class="button-grid">
+            <button onclick="triggerUpdate('refresh')">🔄 Update ALL</button>
+            <button onclick="triggerUpdate('fetch-stripe')">💳 Stripe</button>
+            <button onclick="triggerUpdate('fetch-meta')">📘 Meta Ads</button>
+            <button onclick="triggerUpdate('fetch-tiktok')">🎵 TikTok Ads</button>
+            <button onclick="triggerUpdate('fetch-mailerlite')">✉️ MailerLite</button>
+            <button onclick="triggerUpdate('fetch-steam-sales')">🚂 Steam</button>
+        </div>
     </div>
 
-    <div id="status">Ready.</div>
+    <h3>Terminal Output</h3>
+    <div class="console-container" id="console">
+        <div class="log-info">System ready. Awaiting commands...</div>
+    </div>
 
     <script>
-        async function triggerUpdate(endpoint) {
-            const statusDiv = document.getElementById('status');
-            const buttons = document.querySelectorAll('button');
+        function logToConsole(message, type = 'info') {
+            const consoleDiv = document.getElementById('console');
+            const time = new Date().toLocaleTimeString();
+            const msgDiv = document.createElement('div');
             
-            // Disable buttons and show loading text
+            msgDiv.className = `log-${type}`;
+            // If the message is an object, format it nicely
+            const text = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
+            msgDiv.innerText = `[${time}] ${text}`;
+            
+            consoleDiv.appendChild(msgDiv);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight; // Auto-scroll to bottom
+        }
+
+        async function triggerUpdate(endpoint) {
+            const buttons = document.querySelectorAll('button');
+            const sinceVal = document.getElementById('since').value;
+            const untilVal = document.getElementById('until').value;
+            
             buttons.forEach(btn => btn.disabled = true);
-            statusDiv.style.color = "#f0ad4e";
-            statusDiv.innerText = `Fetching data from ${endpoint.replace('fetch-', '').toUpperCase()}... please wait.`;
+            logToConsole(`>>> Starting ${endpoint.toUpperCase()}...`, 'warn');
+
+            // Build payload with date range if provided
+            const payload = {};
+            if (sinceVal) payload.since = new Date(sinceVal).toISOString();
+            if (untilVal) payload.until = new Date(untilVal).toISOString();
 
             try {
-                // Send request to your Netlify function
                 const response = await fetch(`/.netlify/functions/${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({}) // Fetches the default 30-day range
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
-                    statusDiv.style.color = "#5cb85c";
-                    statusDiv.innerText = `✅ Success! Data sent to Google Sheets.`;
-                    console.log(result);
+                    // Check if we hit the 'refresh' endpoint which has nested results
+                    if (endpoint === 'refresh' && result.results) {
+                        for (const [source, data] of Object.entries(result.results)) {
+                            if (data && data.ok === false) {
+                                logToConsole(`[${source.toUpperCase()}] ERROR: ${data.msg}`, 'error');
+                            } else {
+                                logToConsole(`[${source.toUpperCase()}] SUCCESS: Added ${data?.rows || 0} rows`, 'success');
+                            }
+                        }
+                    } else if (result.ok === false) {
+                        // Handle individual fetch endpoints throwing caught errors
+                        logToConsole(`ERROR: ${result.msg}`, 'error');
+                    } else {
+                        logToConsole(`SUCCESS: Transferred ${result.rows || 0} rows to Google Sheets.`, 'success');
+                    }
+                    logToConsole(`API Response Details:`, 'info');
+                    logToConsole(result, 'info');
                 } else {
-                    throw new Error(result.error || "Something went wrong.");
+                    logToConsole(`HTTP ERROR: ${result.error || response.statusText}`, 'error');
                 }
             } catch (error) {
-                statusDiv.style.color = "#d9534f";
-                statusDiv.innerText = `❌ Error: ${error.message}`;
+                logToConsole(`NETWORK ERROR: ${error.message}`, 'error');
             } finally {
-                // Re-enable buttons
                 buttons.forEach(btn => btn.disabled = false);
+                logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn');
             }
         }
     </script>
