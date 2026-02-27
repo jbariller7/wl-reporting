@@ -15,7 +15,8 @@
         .log-warn { color: #ffaa00; }
         .log-success { color: #55ff55; }
         .log-info { color: #aaaaaa; }
-        [v-cloak] { display: none; }
+        th { user-select: none; }
+        th:hover { background-color: #e5e7eb; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
@@ -45,44 +46,59 @@
                     <input type="date" id="dash-end" class="border rounded p-2 text-sm w-40">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Country</label>
-                    <select id="dash-country" class="border rounded p-2 text-sm w-48">
-                        <option value="ALL">All Countries</option>
-                        </select>
-                </div>
-                <div>
                     <button onclick="loadDashboardData()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
                         Load / Refresh Data
                     </button>
                 </div>
-                <div class="text-xs text-gray-400 ml-auto pb-2">
-                    *Assumes 1 USD = 0.92 EUR<br>
+                <div class="text-xs text-gray-400 ml-auto pb-2 text-right">
+                    *Excludes 'unpaid' Stripe sessions<br>
                     *Net Revenue deducts Steam 30% & flat 12.5% Tax
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-red-400">
-                    <div class="text-sm text-gray-500 font-medium">Meta Ad Spend</div>
-                    <div class="text-2xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-400">
+                    <div class="text-xs text-gray-500 font-medium uppercase">Meta Ad Spend</div>
+                    <div class="text-xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
                 </div>
-                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-green-400">
-                    <div class="text-sm text-gray-500 font-medium">Net Revenue (EUR)</div>
-                    <div class="text-2xl font-bold text-gray-800" id="kpi-net">€0.00</div>
-                    <div class="text-xs text-gray-400 mt-1" id="kpi-gross">Gross: €0.00</div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-400">
+                    <div class="text-xs text-gray-500 font-medium uppercase">Net Revenue</div>
+                    <div class="text-xl font-bold text-gray-800" id="kpi-net">€0.00</div>
                 </div>
-                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-400">
-                    <div class="text-sm text-gray-500 font-medium">New Subscribers</div>
-                    <div class="text-2xl font-bold text-gray-800" id="kpi-subs">0</div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-400">
+                    <div class="text-xs text-gray-500 font-medium uppercase">New Subscribers</div>
+                    <div class="text-xl font-bold text-gray-800" id="kpi-subs">0</div>
                 </div>
-                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-purple-400">
-                    <div class="text-sm text-gray-500 font-medium">ROAS (Net / Spend)</div>
-                    <div class="text-2xl font-bold text-gray-800" id="kpi-roas">0.00x</div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-400">
+                    <div class="text-xs text-gray-500 font-medium uppercase">Cost Per Sub</div>
+                    <div class="text-xl font-bold text-gray-800" id="kpi-cps">€0.00</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-400">
+                    <div class="text-xs text-gray-500 font-medium uppercase">ROAS</div>
+                    <div class="text-xl font-bold text-gray-800" id="kpi-roas">0.00x</div>
                 </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-10">
-                <canvas id="mainChart" height="100"></canvas>
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-6">
+                <canvas id="mainChart" height="80"></canvas>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Regional Performance Breakdown</h3>
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200 bg-gray-50 text-sm text-gray-600">
+                            <th class="p-3 cursor-pointer" onclick="sortTable('country')">Country / Region ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('spend')">Ad Spend ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('net')">Net Revenue ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('subs')">Subscribers ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cps')">Cost / Sub ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('roas')">ROAS ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="country-table-body" class="text-sm">
+                        </tbody>
+                </table>
             </div>
         </div>
 
@@ -119,7 +135,16 @@
     </div>
 
     <script>
-        // --- 1. UI Logic ---
+        // --- Custom Country Groupings ---
+        // Edit this object to group countries for your specific ad targeting strategies
+        const REGIONS = {
+            'DE': 'DACH', 'AT': 'DACH', 'CH': 'DACH',
+            'US': 'North America', 'CA': 'North America',
+            'GB': 'UK', 'UK': 'UK',
+            'FR': 'Francophone', 'BE': 'Francophone'
+        };
+
+        // --- UI Logic ---
         function switchTab(tab) {
             document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
             document.getElementById('view-sync').classList.toggle('hidden', tab !== 'sync');
@@ -129,25 +154,32 @@
             document.getElementById('tab-sync').classList.toggle('tab-active', tab === 'sync');
         }
 
-        // --- 2. Dashboard Logic ---
+        // --- Dashboard Logic ---
         const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
-        const USD_TO_EUR = 0.92;
         const TAX_RATE = 0.125;
         const STEAM_CUT = 0.30;
-        let myChart = null;
+        
+        // Accurate Exchange Rates Map (To EUR)
+        const RATES = { 'usd': 0.92, 'eur': 1.0, 'jpy': 0.0061, 'gbp': 1.17 };
+        function toEur(amount, curr) {
+            const c = (curr || 'eur').toLowerCase();
+            return amount * (RATES[c] || 1);
+        }
 
-        // Helper to fetch and parse CSV from Google Sheets public link
+        let myChart = null;
+        let countryAggData = []; // Holds data for the sortable table
+        let currentSort = { col: 'spend', desc: true };
+
         async function fetchSheet(sheetName) {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 Papa.parse(url, { download: true, header: true, skipEmptyLines: true,
                     complete: (results) => resolve(results.data),
-                    error: (err) => resolve([]) // fail gracefully if tab is empty
+                    error: () => resolve([])
                 });
             });
         }
 
-        // Normalize various date formats (DD/MM/YYYY or ISO) to YYYY-MM-DD
         function normalizeDate(dStr) {
             if (!dStr) return null;
             if (dStr.includes('/')) {
@@ -161,30 +193,30 @@
             const btn = document.querySelector('button[onclick="loadDashboardData()"]');
             btn.innerText = "Loading...";
             
-            // 1. Fetch all data simultaneously
             const [meta, steam, stripe, paypal, mailerlite] = await Promise.all([
                 fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite')
             ]);
 
-            // 2. Get UI Filters
             const startDate = document.getElementById('dash-start').value || "2000-01-01";
             const endDate = document.getElementById('dash-end').value || "2099-12-31";
-            const filterCountry = document.getElementById('dash-country').value;
 
-            let totalSpend = 0, totalGross = 0, totalNet = 0, totalSubs = 0;
-            const dailyData = {}; // Format: { "2026-02-27": { spend: 0, net: 0, subs: 0 } }
-            const countrySet = new Set();
+            let totalSpend = 0, totalNet = 0, totalSubs = 0;
+            const dailyData = {}; 
+            const countryAgg = {}; 
 
-            // Helper to add to daily aggregation
+            const getAgg = (country) => {
+                const c = (country || 'UNKNOWN').toUpperCase();
+                if (!countryAgg[c]) countryAgg[c] = { country: c, region: REGIONS[c] || 'Other', spend: 0, net: 0, subs: 0 };
+                return countryAgg[c];
+            };
+
             const addMetric = (date, metric, val, country) => {
                 if (!date || isNaN(val)) return;
                 const d = normalizeDate(date);
-                const c = country ? country.toUpperCase() : "UNKNOWN";
-                countrySet.add(c);
-
-                if (d >= startDate && d <= endDate && (filterCountry === 'ALL' || filterCountry === c)) {
+                if (d >= startDate && d <= endDate) {
                     if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
                     dailyData[d][metric] += val;
+                    getAgg(country)[metric] += val;
                     
                     if (metric === 'spend') totalSpend += val;
                     if (metric === 'net') totalNet += val;
@@ -192,89 +224,66 @@
                 }
             };
 
-            // Process Meta (Spend)
+            // Process Data
             meta.forEach(r => addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country));
-
-            // Process Steam (Gross & Net Revenue)
+            mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            
             steam.forEach(r => {
-                const usdRevenue = parseFloat(r.net_revenue || 0); // Steam's net_revenue is Gross - Refunds
-                const eurRevenue = usdRevenue * USD_TO_EUR;
+                const eurRevenue = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
                 const finalNet = eurRevenue * (1 - STEAM_CUT) * (1 - TAX_RATE);
-                
-                if (normalizeDate(r.date) >= startDate && normalizeDate(r.date) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
-                    totalGross += eurRevenue;
-                }
                 addMetric(r.date, 'net', finalNet, r.country);
             });
 
-            // Process Stripe
             stripe.forEach(r => {
+                if (r.status === 'unpaid') return; // FIX: Ignore abandoned carts
                 const amt = parseFloat(r.amount || 0) / 100;
-                const eurRevenue = (r.currency || '').toLowerCase() === 'usd' ? amt * USD_TO_EUR : amt;
+                const eurRevenue = toEur(amt, r.currency);
                 const finalNet = eurRevenue * (1 - TAX_RATE);
-                
-                if (normalizeDate(r.created_at) >= startDate && normalizeDate(r.created_at) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
-                    totalGross += eurRevenue;
-                }
                 addMetric(r.created_at, 'net', finalNet, r.country);
             });
 
-            // Process PayPal (Handles user typo 'amout' or correct 'amount')
             paypal.forEach(r => {
-                const rawAmt = r.amout || r.amount || 0;
-                const amt = parseFloat(rawAmt);
-                const eurRevenue = (r.currency || '').toLowerCase() === 'usd' ? amt * USD_TO_EUR : amt;
+                const amt = parseFloat(r.amout || r.amount || 0); // Handles the typo
+                const eurRevenue = toEur(amt, r.currency);
                 const finalNet = eurRevenue * (1 - TAX_RATE);
-                
-                if (normalizeDate(r.date) >= startDate && normalizeDate(r.date) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
-                    totalGross += eurRevenue;
-                }
                 addMetric(r.date, 'net', finalNet, r.country);
             });
 
-            // Process MailerLite
-            mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-
-            // 3. Update Dropdown Countries if empty
-            const select = document.getElementById('dash-country');
-            if (select.options.length === 1) {
-                Array.from(countrySet).sort().forEach(c => {
-                    if(c !== "UNKNOWN") select.add(new Option(c, c));
-                });
-            }
-
-            // 4. Update KPIs
+            // Update Top KPIs
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
-            document.getElementById('kpi-gross').innerText = `Gross: €${totalGross.toFixed(2)}`;
             document.getElementById('kpi-subs').innerText = totalSubs;
+            document.getElementById('kpi-cps').innerText = totalSubs > 0 ? `€${(totalSpend / totalSubs).toFixed(2)}` : '€0.00';
             document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : 'N/A';
 
-            // 5. Update Chart
-            const sortedDates = Object.keys(dailyData).sort();
-            const chartLabels = sortedDates;
-            const chartSpend = sortedDates.map(d => dailyData[d].spend);
-            const chartNet = sortedDates.map(d => dailyData[d].net);
-            const chartSubs = sortedDates.map(d => dailyData[d].subs);
+            // Calculate ratios for the table
+            countryAggData = Object.values(countryAgg).map(c => {
+                c.cps = c.subs > 0 ? c.spend / c.subs : 0;
+                c.roas = c.spend > 0 ? c.net / c.spend : 0;
+                return c;
+            }).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
 
+            renderTable();
+
+            // Render Chart
+            const sortedDates = Object.keys(dailyData).sort();
             if (myChart) myChart.destroy();
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            myChart = new Chart(ctx, {
+            myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: chartLabels,
+                    labels: sortedDates,
                     datasets: [
-                        { label: 'Net Revenue (€)', data: chartNet, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
-                        { label: 'Ad Spend (€)', data: chartSpend, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
-                        { label: 'Subscribers', data: chartSubs, type: 'bar', backgroundColor: '#60a5fa', yAxisID: 'y1' }
+                        { label: 'Net Revenue (€)', data: sortedDates.map(d => dailyData[d].net), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                        { label: 'Ad Spend (€)', data: sortedDates.map(d => dailyData[d].spend), borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                        { label: 'Subscribers', data: sortedDates.map(d => dailyData[d].subs), type: 'bar', backgroundColor: '#60a5fa', yAxisID: 'y1' }
                     ]
                 },
                 options: {
                     responsive: true,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Euros (€)'} },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Users'} }
+                        y: { type: 'linear', display: true, position: 'left' },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
                     }
                 }
             });
@@ -282,20 +291,53 @@
             btn.innerText = "Load / Refresh Data";
         }
 
-        // Initialize dashboard on load
+        // --- Table Sorting & Rendering Logic ---
+        function sortTable(col) {
+            if (currentSort.col === col) {
+                currentSort.desc = !currentSort.desc;
+            } else {
+                currentSort.col = col;
+                currentSort.desc = true;
+            }
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('country-table-body');
+            const col = currentSort.col;
+            const dir = currentSort.desc ? -1 : 1;
+
+            countryAggData.sort((a, b) => {
+                if (a[col] < b[col]) return -1 * dir;
+                if (a[col] > b[col]) return 1 * dir;
+                return 0;
+            });
+
+            tbody.innerHTML = countryAggData.map(c => `
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="p-3 font-medium text-gray-800">
+                        ${c.country} <span class="text-xs text-gray-400 ml-1">(${c.region})</span>
+                    </td>
+                    <td class="p-3 text-right text-red-600">€${c.spend.toFixed(2)}</td>
+                    <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
+                    <td class="p-3 text-right text-blue-600 font-bold">${c.subs}</td>
+                    <td class="p-3 text-right text-gray-600">€${c.cps.toFixed(2)}</td>
+                    <td class="p-3 text-right ${c.roas >= 1 ? 'text-green-600 font-bold' : 'text-gray-500'}">${c.roas.toFixed(2)}x</td>
+                </tr>
+            `).join('');
+        }
+
         window.onload = () => {
-            // Default date range (Last 30 days)
             const today = new Date();
             const lastMonth = new Date();
             lastMonth.setDate(today.getDate() - 30);
-            
             document.getElementById('dash-end').value = today.toISOString().split('T')[0];
             document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
-            
             loadDashboardData();
         };
 
-        // --- 3. ETL Sync Logic (Your existing code) ---
+        // --- ETL Sync Logic ---
+        // (Keep your triggerUpdate and logToConsole functions exactly as they were here)
         function logToConsole(message, type = 'info') {
             const consoleDiv = document.getElementById('console');
             const time = new Date().toLocaleTimeString();
