@@ -4,78 +4,317 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WonderLang Data Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <style>
-        body { font-family: Arial, sans-serif; padding: 30px; background-color: #f4f4f9; color: #333; max-width: 900px; margin: 0 auto; }
-        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .date-pickers { margin-bottom: 20px; display: flex; gap: 15px; align-items: center; justify-content: center; }
-        .date-pickers input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-        button { padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px; background-color: #0056b3; color: white; transition: background 0.3s; }
-        button:hover { background-color: #003d82; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        
-        /* Console Styles */
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
         .console-container { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; height: 300px; overflow-y: auto; text-align: left; }
         .log-error { color: #ff5555; }
         .log-warn { color: #ffaa00; }
         .log-success { color: #55ff55; }
         .log-info { color: #aaaaaa; }
+        [v-cloak] { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
 
-    <h1 style="text-align: center;">Data Sync Control Panel</h1>
-    
-    <div class="controls">
-        <div class="date-pickers">
-            <label><strong>Fetch Data From:</strong></label>
-            <input type="date" id="since">
-            <label><strong>To:</strong></label>
-            <input type="date" id="until">
+    <nav class="bg-white shadow-sm mb-6">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="text-xl font-bold text-gray-800">WonderLang Reporting</div>
+                <div class="flex space-x-6">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2">Dashboard</button>
+                    <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Data Sync</button>
+                </div>
+            </div>
         </div>
-        <p style="text-align: center; font-size: 0.9em; color: #666;">
-            <em>Leave dates blank to default to the last 30 days. For your initial sync, pick a date far in the past.</em>
-        </p>
+    </nav>
 
-        <div class="button-grid">
-            <button onclick="triggerUpdate('refresh')">🔄 Update ALL</button>
-            <button onclick="triggerUpdate('fetch-stripe')">💳 Stripe</button>
-            <button onclick="triggerUpdate('fetch-meta')">📘 Meta Ads</button>
-            <button onclick="triggerUpdate('fetch-tiktok')">🎵 TikTok Ads</button>
-            <button onclick="triggerUpdate('fetch-mailerlite')">✉️ MailerLite</button>
-            <button onclick="triggerUpdate('fetch-steam-sales')">🚂 Steam</button>
+    <div class="max-w-6xl mx-auto px-4">
+        
+        <div id="view-dashboard">
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">From Date</label>
+                    <input type="date" id="dash-start" class="border rounded p-2 text-sm w-40">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">To Date</label>
+                    <input type="date" id="dash-end" class="border rounded p-2 text-sm w-40">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Country</label>
+                    <select id="dash-country" class="border rounded p-2 text-sm w-48">
+                        <option value="ALL">All Countries</option>
+                        </select>
+                </div>
+                <div>
+                    <button onclick="loadDashboardData()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
+                        Load / Refresh Data
+                    </button>
+                </div>
+                <div class="text-xs text-gray-400 ml-auto pb-2">
+                    *Assumes 1 USD = 0.92 EUR<br>
+                    *Net Revenue deducts Steam 30% & flat 12.5% Tax
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-red-400">
+                    <div class="text-sm text-gray-500 font-medium">Meta Ad Spend</div>
+                    <div class="text-2xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-green-400">
+                    <div class="text-sm text-gray-500 font-medium">Net Revenue (EUR)</div>
+                    <div class="text-2xl font-bold text-gray-800" id="kpi-net">€0.00</div>
+                    <div class="text-xs text-gray-400 mt-1" id="kpi-gross">Gross: €0.00</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-400">
+                    <div class="text-sm text-gray-500 font-medium">New Subscribers</div>
+                    <div class="text-2xl font-bold text-gray-800" id="kpi-subs">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-lg shadow-sm border-l-4 border-purple-400">
+                    <div class="text-sm text-gray-500 font-medium">ROAS (Net / Spend)</div>
+                    <div class="text-2xl font-bold text-gray-800" id="kpi-roas">0.00x</div>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-10">
+                <canvas id="mainChart" height="100"></canvas>
+            </div>
         </div>
-    </div>
 
-    <h3>Terminal Output</h3>
-    <div class="console-container" id="console">
-        <div class="log-info">System ready. Awaiting commands...</div>
+        <div id="view-sync" class="hidden">
+            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+                <h2 class="text-lg font-bold mb-4">Manual ETL Triggers</h2>
+                <div class="flex gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Fetch Data From:</label>
+                        <input type="date" id="since" class="border rounded p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">To:</label>
+                        <input type="date" id="until" class="border rounded p-2 text-sm">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL</button>
+                    <button onclick="triggerUpdate('fetch-stripe')" class="bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Stripe</button>
+                    <button onclick="triggerUpdate('fetch-meta')" class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Meta Ads</button>
+                    <button onclick="triggerUpdate('fetch-tiktok')" class="bg-black text-white py-2 rounded hover:bg-gray-800 transition">TikTok Ads</button>
+                    <button onclick="triggerUpdate('fetch-mailerlite')" class="bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">MailerLite</button>
+                    <button onclick="triggerUpdate('fetch-steam-sales')" class="bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">Steam</button>
+                </div>
+            </div>
+
+            <h3 class="font-bold text-gray-700 mb-2">Terminal Output</h3>
+            <div class="console-container mb-10" id="console">
+                <div class="log-info">System ready. Awaiting commands...</div>
+            </div>
+        </div>
+
     </div>
 
     <script>
+        // --- 1. UI Logic ---
+        function switchTab(tab) {
+            document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+            document.getElementById('view-sync').classList.toggle('hidden', tab !== 'sync');
+            document.getElementById('tab-dashboard').classList.toggle('text-gray-500', tab !== 'dashboard');
+            document.getElementById('tab-dashboard').classList.toggle('tab-active', tab === 'dashboard');
+            document.getElementById('tab-sync').classList.toggle('text-gray-500', tab !== 'sync');
+            document.getElementById('tab-sync').classList.toggle('tab-active', tab === 'sync');
+        }
+
+        // --- 2. Dashboard Logic ---
+        const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
+        const USD_TO_EUR = 0.92;
+        const TAX_RATE = 0.125;
+        const STEAM_CUT = 0.30;
+        let myChart = null;
+
+        // Helper to fetch and parse CSV from Google Sheets public link
+        async function fetchSheet(sheetName) {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, { download: true, header: true, skipEmptyLines: true,
+                    complete: (results) => resolve(results.data),
+                    error: (err) => resolve([]) // fail gracefully if tab is empty
+                });
+            });
+        }
+
+        // Normalize various date formats (DD/MM/YYYY or ISO) to YYYY-MM-DD
+        function normalizeDate(dStr) {
+            if (!dStr) return null;
+            if (dStr.includes('/')) {
+                const parts = dStr.split('/');
+                if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            }
+            return dStr.substring(0, 10);
+        }
+
+        async function loadDashboardData() {
+            const btn = document.querySelector('button[onclick="loadDashboardData()"]');
+            btn.innerText = "Loading...";
+            
+            // 1. Fetch all data simultaneously
+            const [meta, steam, stripe, paypal, mailerlite] = await Promise.all([
+                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite')
+            ]);
+
+            // 2. Get UI Filters
+            const startDate = document.getElementById('dash-start').value || "2000-01-01";
+            const endDate = document.getElementById('dash-end').value || "2099-12-31";
+            const filterCountry = document.getElementById('dash-country').value;
+
+            let totalSpend = 0, totalGross = 0, totalNet = 0, totalSubs = 0;
+            const dailyData = {}; // Format: { "2026-02-27": { spend: 0, net: 0, subs: 0 } }
+            const countrySet = new Set();
+
+            // Helper to add to daily aggregation
+            const addMetric = (date, metric, val, country) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                const c = country ? country.toUpperCase() : "UNKNOWN";
+                countrySet.add(c);
+
+                if (d >= startDate && d <= endDate && (filterCountry === 'ALL' || filterCountry === c)) {
+                    if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
+                    dailyData[d][metric] += val;
+                    
+                    if (metric === 'spend') totalSpend += val;
+                    if (metric === 'net') totalNet += val;
+                    if (metric === 'subs') totalSubs += val;
+                }
+            };
+
+            // Process Meta (Spend)
+            meta.forEach(r => addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country));
+
+            // Process Steam (Gross & Net Revenue)
+            steam.forEach(r => {
+                const usdRevenue = parseFloat(r.net_revenue || 0); // Steam's net_revenue is Gross - Refunds
+                const eurRevenue = usdRevenue * USD_TO_EUR;
+                const finalNet = eurRevenue * (1 - STEAM_CUT) * (1 - TAX_RATE);
+                
+                if (normalizeDate(r.date) >= startDate && normalizeDate(r.date) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
+                    totalGross += eurRevenue;
+                }
+                addMetric(r.date, 'net', finalNet, r.country);
+            });
+
+            // Process Stripe
+            stripe.forEach(r => {
+                const amt = parseFloat(r.amount || 0) / 100;
+                const eurRevenue = (r.currency || '').toLowerCase() === 'usd' ? amt * USD_TO_EUR : amt;
+                const finalNet = eurRevenue * (1 - TAX_RATE);
+                
+                if (normalizeDate(r.created_at) >= startDate && normalizeDate(r.created_at) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
+                    totalGross += eurRevenue;
+                }
+                addMetric(r.created_at, 'net', finalNet, r.country);
+            });
+
+            // Process PayPal (Handles user typo 'amout' or correct 'amount')
+            paypal.forEach(r => {
+                const rawAmt = r.amout || r.amount || 0;
+                const amt = parseFloat(rawAmt);
+                const eurRevenue = (r.currency || '').toLowerCase() === 'usd' ? amt * USD_TO_EUR : amt;
+                const finalNet = eurRevenue * (1 - TAX_RATE);
+                
+                if (normalizeDate(r.date) >= startDate && normalizeDate(r.date) <= endDate && (filterCountry === 'ALL' || (r.country || '').toUpperCase() === filterCountry)) {
+                    totalGross += eurRevenue;
+                }
+                addMetric(r.date, 'net', finalNet, r.country);
+            });
+
+            // Process MailerLite
+            mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+
+            // 3. Update Dropdown Countries if empty
+            const select = document.getElementById('dash-country');
+            if (select.options.length === 1) {
+                Array.from(countrySet).sort().forEach(c => {
+                    if(c !== "UNKNOWN") select.add(new Option(c, c));
+                });
+            }
+
+            // 4. Update KPIs
+            document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
+            document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
+            document.getElementById('kpi-gross').innerText = `Gross: €${totalGross.toFixed(2)}`;
+            document.getElementById('kpi-subs').innerText = totalSubs;
+            document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : 'N/A';
+
+            // 5. Update Chart
+            const sortedDates = Object.keys(dailyData).sort();
+            const chartLabels = sortedDates;
+            const chartSpend = sortedDates.map(d => dailyData[d].spend);
+            const chartNet = sortedDates.map(d => dailyData[d].net);
+            const chartSubs = sortedDates.map(d => dailyData[d].subs);
+
+            if (myChart) myChart.destroy();
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        { label: 'Net Revenue (€)', data: chartNet, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                        { label: 'Ad Spend (€)', data: chartSpend, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
+                        { label: 'Subscribers', data: chartSubs, type: 'bar', backgroundColor: '#60a5fa', yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Euros (€)'} },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Users'} }
+                    }
+                }
+            });
+
+            btn.innerText = "Load / Refresh Data";
+        }
+
+        // Initialize dashboard on load
+        window.onload = () => {
+            // Default date range (Last 30 days)
+            const today = new Date();
+            const lastMonth = new Date();
+            lastMonth.setDate(today.getDate() - 30);
+            
+            document.getElementById('dash-end').value = today.toISOString().split('T')[0];
+            document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
+            
+            loadDashboardData();
+        };
+
+        // --- 3. ETL Sync Logic (Your existing code) ---
         function logToConsole(message, type = 'info') {
             const consoleDiv = document.getElementById('console');
             const time = new Date().toLocaleTimeString();
             const msgDiv = document.createElement('div');
-            
             msgDiv.className = `log-${type}`;
-            // If the message is an object, format it nicely
             const text = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
             msgDiv.innerText = `[${time}] ${text}`;
-            
             consoleDiv.appendChild(msgDiv);
-            consoleDiv.scrollTop = consoleDiv.scrollHeight; // Auto-scroll to bottom
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
         async function triggerUpdate(endpoint) {
-            const buttons = document.querySelectorAll('button');
+            const buttons = document.querySelectorAll('#view-sync button');
             const sinceVal = document.getElementById('since').value;
             const untilVal = document.getElementById('until').value;
             
             buttons.forEach(btn => btn.disabled = true);
             logToConsole(`>>> Starting ${endpoint.toUpperCase()}...`, 'warn');
 
-            // Build payload with date range if provided
             const payload = {};
             if (sinceVal) payload.since = new Date(sinceVal).toISOString();
             if (untilVal) payload.until = new Date(untilVal).toISOString();
@@ -90,27 +329,17 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Print internal system logs from the ETL process
-    if (result.logs) {
-        result.logs.forEach(l => logToConsole(l.msg, l.type));
-    }
-                    // Check if we hit the 'refresh' endpoint which has nested results
+                    if (result.logs) result.logs.forEach(l => logToConsole(l.msg, l.type));
                     if (endpoint === 'refresh' && result.results) {
                         for (const [source, data] of Object.entries(result.results)) {
-                            if (data && data.ok === false) {
-                                logToConsole(`[${source.toUpperCase()}] ERROR: ${data.msg}`, 'error');
-                            } else {
-                                logToConsole(`[${source.toUpperCase()}] SUCCESS: Added ${data?.rows || 0} rows`, 'success');
-                            }
+                            if (data && data.ok === false) logToConsole(`[${source.toUpperCase()}] ERROR: ${data.msg}`, 'error');
+                            else logToConsole(`[${source.toUpperCase()}] SUCCESS: Added ${data?.rows || 0} rows`, 'success');
                         }
                     } else if (result.ok === false) {
-                        // Handle individual fetch endpoints throwing caught errors
                         logToConsole(`ERROR: ${result.msg}`, 'error');
                     } else {
                         logToConsole(`SUCCESS: Transferred ${result.rows || 0} rows to Google Sheets.`, 'success');
                     }
-                    logToConsole(`API Response Details:`, 'info');
-                    logToConsole(result, 'info');
                 } else {
                     logToConsole(`HTTP ERROR: ${result.error || response.statusText}`, 'error');
                 }
