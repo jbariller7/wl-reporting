@@ -37,36 +37,53 @@
     <div class="max-w-6xl mx-auto px-4">
         
         <div id="view-dashboard">
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-end">
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">From Date</label>
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-start">
+                
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-gray-600">From Date</label>
                     <input type="date" id="dash-start" class="border rounded p-2 text-sm w-36">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">To Date</label>
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-gray-600">To Date</label>
                     <input type="date" id="dash-end" class="border rounded p-2 text-sm w-36">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Exclude Dates (e.g. 2026-02-14:2026-02-18)</label>
-                    <input type="text" id="dash-exclude" class="border rounded p-2 text-sm w-64" placeholder="YYYY-MM-DD or YYYY-MM-DD:YYYY-MM-DD">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Country / Region</label>
-                    <select id="dash-country" class="border rounded p-2 text-sm w-48">
+                
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-gray-600">Country / Region</label>
+                    <select id="dash-country" class="border rounded p-2 text-sm w-56">
                         <option value="ALL">All Locations</option>
                     </select>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="loadDashboardData()" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition">
-                        Load Data
-                    </button>
-                    <button onclick="openRegionModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition">
-                        ⚙️ Regions
-                    </button>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-gray-600">Exclude Ad Sets (keywords, comma-separated)</label>
+                    <input type="text" id="dash-exclude-adsets" class="border rounded p-2 text-sm w-64" placeholder="e.g. retargeting, test_group">
                 </div>
-                <div class="text-xs text-gray-400 w-full text-right mt-2">
-                    *Excludes 'unpaid' Stripe sessions | *Net deducts Steam 30% & 12.5% Tax
+
+                <div class="flex flex-col gap-1 bg-gray-50 p-2 rounded border w-72">
+                    <label class="text-sm font-medium text-gray-600">Exclude Dates</label>
+                    <div id="exclude-date-rows" class="flex flex-col gap-1">
+                        </div>
+                    <button onclick="addExcludeRow()" class="text-xs text-blue-600 font-medium hover:underline text-left mt-1">+ Add Date Range</button>
                 </div>
+
+                <div class="flex flex-col gap-2 ml-auto mt-6 items-end">
+                    <div class="flex gap-2">
+                        <button onclick="openRegionModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition text-sm">
+                            ⚙️ Regions
+                        </button>
+                        <button onclick="loadDashboardData()" class="bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition text-sm font-bold">
+                            Load Data
+                        </button>
+                    </div>
+                    <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm w-full text-center">
+                        📋 Copy data for Gemini
+                    </button>
+                    <div class="text-xs text-gray-400 text-right mt-1">
+                        *Net deducts Steam 30% & 12.5% Tax
+                    </div>
+                </div>
+
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -163,11 +180,7 @@
         
         function getCountryName(code) {
             if (!code || code === 'UNKNOWN') return 'Unknown / Unattributed';
-            try {
-                return regionNames.of(code) || code;
-            } catch (e) {
-                return code; // Fallback if the code format is invalid
-            }
+            try { return regionNames.of(code) || code; } catch (e) { return code; }
         }
 
         // --- 2. Dynamic Region Management ---
@@ -196,37 +209,53 @@
             loadRegions();
             loadDashboardData(); 
         }
-
         loadRegions();
 
-        // --- 3. Rank-Based Heatmap Logic ---
+        // --- 3. Exclude Dates UI & Logic ---
+        function addExcludeRow(start = '', end = '') {
+            const container = document.getElementById('exclude-date-rows');
+            const rowId = 'excl-' + Date.now() + Math.floor(Math.random() * 1000);
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = "flex items-center gap-1";
+            div.innerHTML = `
+                <input type="date" class="exclude-start border rounded p-1 text-xs w-[110px]" value="${start}">
+                <span class="text-gray-400 text-xs">to</span>
+                <input type="date" class="exclude-end border rounded p-1 text-xs w-[110px]" value="${end}">
+                <button onclick="document.getElementById('${rowId}').remove()" class="text-red-500 font-bold px-1.5 hover:bg-red-100 rounded">×</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function getExcludedDateRanges() {
+            const ranges = [];
+            document.querySelectorAll('#exclude-date-rows > div').forEach(row => {
+                const s = row.querySelector('.exclude-start').value;
+                const e = row.querySelector('.exclude-end').value;
+                if (s || e) {
+                    ranges.push({
+                        start: s || '2000-01-01',
+                        end: e || '2099-12-31'
+                    });
+                }
+            });
+            return ranges;
+        }
+
+        function isDateExcluded(dStr, excludeRanges) {
+            return excludeRanges.some(r => dStr >= r.start && dStr <= r.end);
+        }
+
+        // --- 4. Rank-Based Heatmap Logic ---
         function getRankColor(val, sortedArr, goodIsHigh) {
             if (!val || val <= 0 || sortedArr.length === 0) return 'transparent';
             if (sortedArr.length === 1) return 'hsl(60, 80%, 85%)'; 
-
             const index = sortedArr.indexOf(val);
             if (index === -1) return 'transparent';
-
             let ratio = index / (sortedArr.length - 1); 
             if (!goodIsHigh) ratio = 1 - ratio; 
-            
             const hue = ratio * 120;
             return `hsl(${hue}, 80%, 85%)`; 
-        }
-
-        // --- 4. Date Exclusion Logic ---
-        function isDateExcluded(dStr, excludeStr) {
-            if (!excludeStr || !excludeStr.trim()) return false;
-            const rules = excludeStr.split(',').map(r => r.trim());
-            for (const rule of rules) {
-                if (rule.includes(':')) {
-                    const [start, end] = rule.split(':').map(s => s.trim());
-                    if (dStr >= start && dStr <= end) return true;
-                } else {
-                    if (dStr === rule) return true;
-                }
-            }
-            return false;
         }
 
         // --- UI Tabs ---
@@ -245,13 +274,12 @@
         const STEAM_CUT = 0.30;
         const RATES = { 'usd': 0.92, 'eur': 1.0, 'jpy': 0.0061, 'gbp': 1.17 };
         
-        function toEur(amount, curr) {
-            return amount * (RATES[(curr || 'eur').toLowerCase()] || 1);
-        }
+        function toEur(amount, curr) { return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); }
 
         let myChart = null;
         let countryAggData = []; 
         let currentSort = { col: 'roas', desc: true }; 
+        let globalDashboardState = {}; // Used to copy data for Gemini
 
         async function fetchSheet(sheetName) {
             const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
@@ -282,8 +310,15 @@
 
             const startDate = document.getElementById('dash-start').value || "2000-01-01";
             const endDate = document.getElementById('dash-end').value || "2099-12-31";
-            const excludeDatesStr = document.getElementById('dash-exclude').value;
             const filterSelection = document.getElementById('dash-country').value;
+            const excludedRanges = getExcludedDateRanges();
+            
+            // Parse Ad Set exclusions
+            const rawAdsetFilter = document.getElementById('dash-exclude-adsets').value;
+            const excludeAdsets = rawAdsetFilter.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+
+            // Save state for Gemini export
+            globalDashboardState = { startDate, endDate, filterSelection, excludeAdsets, excludedRanges };
 
             let totalSpend = 0, totalNet = 0, totalSubs = 0;
             const dailyData = {}; 
@@ -304,17 +339,13 @@
                 else if (filterSelection.startsWith('REGION:')) isFilteredIn = (regionName === filterSelection.replace('REGION:', ''));
                 else isFilteredIn = (cCode === filterSelection);
 
-                if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludeDatesStr)) {
+                if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
                     if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
                     dailyData[d][metric] += val;
                     
                     if (!countryAgg[cCode]) countryAgg[cCode] = { 
-                        country: cCode, 
-                        countryName: getCountryName(cCode), // Add full name for sorting and display
-                        region: regionName, 
-                        spend: 0, 
-                        net: 0, 
-                        subs: 0 
+                        country: cCode, countryName: getCountryName(cCode), region: regionName, 
+                        spend: 0, net: 0, subs: 0 
                     };
                     countryAgg[cCode][metric] += val;
                     
@@ -324,17 +355,28 @@
                 }
             };
 
-            meta.forEach(r => addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country));
+            // Process Meta with Ad Set Filtering
+            meta.forEach(r => {
+                const adsetName = (r.adset_name || '').toLowerCase();
+                const shouldExclude = excludeAdsets.length > 0 && excludeAdsets.some(kw => adsetName.includes(kw));
+                if (!shouldExclude) {
+                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                }
+            });
+
             mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            
             steam.forEach(r => {
                 const eurRev = toEur(parseFloat(r.net_revenue || 0), r.currency || 'usd');
                 addMetric(r.date, 'net', eurRev * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country);
             });
+            
             stripe.forEach(r => {
                 if (r.status === 'unpaid') return;
                 const amt = toEur(parseFloat(r.amount || 0) / 100, r.currency);
                 addMetric(r.created_at, 'net', amt * (1 - TAX_RATE), r.country);
             });
+            
             paypal.forEach(r => {
                 const amt = toEur(parseFloat(r.amout || r.amount || 0), r.currency);
                 addMetric(r.date, 'net', amt * (1 - TAX_RATE), r.country);
@@ -352,7 +394,6 @@
                 else countriesList.push(opt);
             });
             
-            // Sort regions alphabetically, then sort countries by their real name alphabetically
             regionsList.sort().forEach(opt => select.add(new Option(`🌍 ${opt.replace('REGION:', '')} (Region)`, opt)));
             countriesList.sort((a, b) => getCountryName(a).localeCompare(getCountryName(b))).forEach(opt => {
                 select.add(new Option(`🇺🇳 ${getCountryName(opt)}`, opt));
@@ -383,13 +424,13 @@
 
             if (myChart) myChart.destroy();
             myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
-                type: 'line',
+                type: 'bar', // Changed root type to bar to support mixed charts
                 data: {
                     labels: sortedDates,
                     datasets: [
-                        { label: 'Ad Spend (€)', data: spendData, borderColor: '#f87171', backgroundColor: 'rgba(248, 113, 113, 0.1)', fill: true, tension: 0.3, yAxisID: 'y' },
-                        { label: 'ROAS (x)', data: roasData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', fill: false, tension: 0.3, yAxisID: 'y1' },
-                        { label: 'Cost / Sub (€)', data: cpsData, borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.1)', fill: false, tension: 0.3, yAxisID: 'y1' }
+                        { type: 'bar', label: 'Ad Spend (€)', data: spendData, backgroundColor: 'rgba(248, 113, 113, 0.7)', yAxisID: 'y' },
+                        { type: 'line', label: 'ROAS (x)', data: roasData, borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', fill: false, tension: 0.3, yAxisID: 'y1' },
+                        { type: 'line', label: 'Cost / Sub (€)', data: cpsData, borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.1)', fill: false, tension: 0.3, yAxisID: 'y1' }
                     ]
                 },
                 options: {
@@ -402,10 +443,14 @@
                 }
             });
 
+            // Save global stats for Gemini
+            globalDashboardState.totalSpend = totalSpend;
+            globalDashboardState.totalNet = totalNet;
+            globalDashboardState.totalSubs = totalSubs;
+
             btn.innerText = "Load Data";
         }
 
-        // --- Table Rendering with Rank Heatmap ---
         function sortTable(col) {
             if (currentSort.col === col) currentSort.desc = !currentSort.desc;
             else { currentSort.col = col; currentSort.desc = true; }
@@ -417,7 +462,6 @@
             const col = currentSort.col;
             const dir = currentSort.desc ? -1 : 1;
 
-            // Sort data according to selected header (String vs Number sorting)
             countryAggData.sort((a, b) => {
                 if (typeof a[col] === 'string') return a[col].localeCompare(b[col]) * dir;
                 if (a[col] < b[col]) return -1 * dir;
@@ -431,8 +475,6 @@
             tbody.innerHTML = countryAggData.map(c => {
                 const roasColor = getRankColor(c.roas, sortedRoas, true);
                 const cpsColor = c.subs > 0 ? getRankColor(c.cps, sortedCps, false) : 'transparent';
-                
-                // Show region tag next to name if it matches a custom region
                 const regionTag = c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : '';
 
                 return `
@@ -451,12 +493,61 @@
             `}).join('');
         }
 
+        // --- Copy For Gemini Function ---
+        function copyForGemini() {
+            const btn = document.getElementById('btn-copy-gemini');
+            
+            const exDates = globalDashboardState.excludedRanges.map(r => `${r.start} to ${r.end}`).join(', ') || 'None';
+            const exAds = globalDashboardState.excludeAdsets.join(', ') || 'None';
+            const cps = globalDashboardState.totalSubs > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalSubs).toFixed(2) : '0.00';
+            const roas = globalDashboardState.totalSpend > 0 ? (globalDashboardState.totalNet / globalDashboardState.totalSpend).toFixed(2) : '0.00';
+
+            let output = `## WonderLang Ad Spend & Revenue Analysis\n\n`;
+            output += `### Dashboard Filter State\n`;
+            output += `- **Date Range:** ${globalDashboardState.startDate} to ${globalDashboardState.endDate}\n`;
+            output += `- **Excluded Dates:** ${exDates}\n`;
+            output += `- **Excluded Ad Sets:** ${exAds}\n`;
+            output += `- **Country Filter:** ${globalDashboardState.filterSelection}\n\n`;
+
+            output += `### Top-Level KPIs\n`;
+            output += `- **Total Ad Spend:** €${globalDashboardState.totalSpend.toFixed(2)}\n`;
+            output += `- **Total Net Revenue:** €${globalDashboardState.totalNet.toFixed(2)}\n`;
+            output += `- **New Subscribers:** ${globalDashboardState.totalSubs}\n`;
+            output += `- **Cost per Sub:** €${cps}\n`;
+            output += `- **ROAS:** ${roas}x\n\n`;
+
+            output += `### Regional Performance Breakdown\n`;
+            output += `| Country | Region | Ad Spend (€) | Net Revenue (€) | Subscribers | Cost/Sub (€) | ROAS (x) |\n`;
+            output += `|---------|--------|--------------|-----------------|-------------|--------------|----------|\n`;
+
+            countryAggData.forEach(c => {
+                output += `| ${c.countryName} (${c.country}) | ${c.region} | ${c.spend.toFixed(2)} | ${c.net.toFixed(2)} | ${c.subs} | ${c.cps.toFixed(2)} | ${c.roas.toFixed(2)} |\n`;
+            });
+
+            navigator.clipboard.writeText(output).then(() => {
+                const oldText = btn.innerText;
+                btn.innerText = "✅ Copied to clipboard!";
+                btn.classList.replace('bg-indigo-100', 'bg-green-100');
+                btn.classList.replace('text-indigo-700', 'text-green-700');
+                
+                setTimeout(() => {
+                    btn.innerText = oldText;
+                    btn.classList.replace('bg-green-100', 'bg-indigo-100');
+                    btn.classList.replace('text-green-700', 'text-indigo-700');
+                }, 3000);
+            });
+        }
+
         window.onload = () => {
             const today = new Date();
             const lastMonth = new Date();
             lastMonth.setDate(today.getDate() - 30);
             document.getElementById('dash-end').value = today.toISOString().split('T')[0];
             document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
+            
+            // Add one empty exclude row by default
+            addExcludeRow();
+            
             loadDashboardData();
         };
 
@@ -490,9 +581,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 const result = await response.json();
-
                 if (response.ok) {
                     if (result.logs) result.logs.forEach(l => logToConsole(l.msg, l.type));
                     if (endpoint === 'refresh' && result.results) {
@@ -500,20 +589,11 @@
                             if (data && data.ok === false) logToConsole(`[${source.toUpperCase()}] ERROR: ${data.msg}`, 'error');
                             else logToConsole(`[${source.toUpperCase()}] SUCCESS: Added ${data?.rows || 0} rows`, 'success');
                         }
-                    } else if (result.ok === false) {
-                        logToConsole(`ERROR: ${result.msg}`, 'error');
-                    } else {
-                        logToConsole(`SUCCESS: Transferred ${result.rows || 0} rows to Google Sheets.`, 'success');
-                    }
-                } else {
-                    logToConsole(`HTTP ERROR: ${result.error || response.statusText}`, 'error');
-                }
-            } catch (error) {
-                logToConsole(`NETWORK ERROR: ${error.message}`, 'error');
-            } finally {
-                buttons.forEach(btn => btn.disabled = false);
-                logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn');
-            }
+                    } else if (result.ok === false) logToConsole(`ERROR: ${result.msg}`, 'error');
+                    else logToConsole(`SUCCESS: Transferred ${result.rows || 0} rows to Sheets.`, 'success');
+                } else logToConsole(`HTTP ERROR: ${result.error || response.statusText}`, 'error');
+            } catch (error) { logToConsole(`NETWORK ERROR: ${error.message}`, 'error'); } 
+            finally { buttons.forEach(btn => btn.disabled = false); logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn'); }
         }
     </script>
 </body>
