@@ -9,4 +9,4 @@
   schedule = "0 4 * * *"
 
 [build]
-  command = "npm run build:db"
+  command = "echo 'No DB build needed for Google Sheets'"
