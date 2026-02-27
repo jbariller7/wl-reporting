@@ -18,6 +18,8 @@
         th { user-select: none; }
         th:hover { background-color: #e5e7eb; }
         .modal-bg { background-color: rgba(0, 0, 0, 0.5); }
+        /* Style for multiselect to make it look clean */
+        select[multiple] { scrollbar-width: thin; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
@@ -56,13 +58,14 @@
                 </div>
 
                 <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-gray-600">Exclude Ad Sets (keywords, comma-separated)</label>
-                    <input type="text" id="dash-exclude-adsets" class="border rounded p-2 text-sm w-64" placeholder="e.g. retargeting, test_group">
+                    <label class="text-sm font-medium text-gray-600">Exclude Ad Sets <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
+                    <select id="dash-exclude-adsets" multiple class="border rounded p-2 text-sm w-64 h-20 bg-white shadow-inner">
+                        </select>
                 </div>
 
                 <div class="flex flex-col gap-1 bg-gray-50 p-2 rounded border w-72">
                     <label class="text-sm font-medium text-gray-600">Exclude Dates</label>
-                    <div id="exclude-date-rows" class="flex flex-col gap-1">
+                    <div id="exclude-date-rows" class="flex flex-col gap-1 max-h-20 overflow-y-auto">
                         </div>
                     <button onclick="addExcludeRow()" class="text-xs text-blue-600 font-medium hover:underline text-left mt-1">+ Add Date Range</button>
                 </div>
@@ -76,7 +79,7 @@
                             Load Data
                         </button>
                     </div>
-                    <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm w-full text-center">
+                    <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm w-full text-center font-medium">
                         📋 Copy data for Gemini
                     </button>
                     <div class="text-xs text-gray-400 text-right mt-1">
@@ -124,6 +127,8 @@
                             <th class="p-3 cursor-pointer text-right" onclick="sortTable('subs')">Subscribers ↕</th>
                             <th class="p-3 cursor-pointer text-right" onclick="sortTable('cps')">Cost / Sub ↕</th>
                             <th class="p-3 cursor-pointer text-right" onclick="sortTable('roas')">ROAS ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cpm')">CPM ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cpc')">CPC ↕</th>
                         </tr>
                     </thead>
                     <tbody id="country-table-body" class="text-sm">
@@ -274,8 +279,6 @@
         const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
         const TAX_RATE = 0.125;
         const STEAM_CUT = 0.30;
-        
-        // Expanded rates array. Added KRW, AUD, CAD, etc.
         const RATES = { 
             'usd': 0.92, 'eur': 1.0, 'gbp': 1.17, 
             'jpy': 0.0061, 'krw': 0.00069, 'aud': 0.60, 
@@ -283,9 +286,7 @@
             'brl': 0.18, 'mxn': 0.054, 'inr': 0.011 
         };
         
-        function toEur(amount, curr) { 
-            return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); 
-        }
+        function toEur(amount, curr) { return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); }
 
         let myChart = null;
         let countryAggData = []; 
@@ -324,12 +325,22 @@
             const filterSelection = document.getElementById('dash-country').value;
             const excludedRanges = getExcludedDateRanges();
             
-            const rawAdsetFilter = document.getElementById('dash-exclude-adsets').value;
-            const excludeAdsets = rawAdsetFilter.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+            // Populate and read Ad Set Exclusions
+            const adsetSelect = document.getElementById('dash-exclude-adsets');
+            const excludeAdsets = Array.from(adsetSelect.selectedOptions).map(opt => opt.value);
+            
+            // Build unique list of Ad Sets to populate dropdown
+            const uniqueAdsets = [...new Set(meta.map(r => r.adset_name).filter(Boolean))].sort();
+            adsetSelect.innerHTML = ''; // clear out old options
+            uniqueAdsets.forEach(adset => {
+                const opt = new Option(adset, adset);
+                if (excludeAdsets.includes(adset)) opt.selected = true; // Retain user selection
+                adsetSelect.add(opt);
+            });
 
             globalDashboardState = { startDate, endDate, filterSelection, excludeAdsets, excludedRanges };
 
-            let totalSpend = 0, totalNet = 0, totalSubs = 0;
+            let totalSpend = 0, totalNet = 0, totalSubs = 0, totalImpressions = 0, totalClicks = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const dropdownOptions = new Set();
@@ -355,48 +366,47 @@
                 }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
-                    if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
+                    if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0, impressions: 0, clicks: 0 };
                     dailyData[d][metric] += val;
                     
                     if (!countryAgg[cCode]) countryAgg[cCode] = { 
                         country: cCode, 
                         countryName: getCountryName(cCode), 
                         region: regionNames.length > 0 ? regionNames.join(', ') : 'Other', 
-                        spend: 0, net: 0, subs: 0 
+                        spend: 0, net: 0, subs: 0, impressions: 0, clicks: 0 
                     };
                     countryAgg[cCode][metric] += val;
                     
                     if (metric === 'spend') totalSpend += val;
                     if (metric === 'net') totalNet += val;
                     if (metric === 'subs') totalSubs += val;
+                    if (metric === 'impressions') totalImpressions += val;
+                    if (metric === 'clicks') totalClicks += val;
                 }
             };
 
-            // Process Meta with Ad Set Filtering
+            // Process Meta with Ad Set Filtering + Impressions/Clicks
             meta.forEach(r => {
-                const adsetName = (r.adset_name || '').toLowerCase();
-                const shouldExclude = excludeAdsets.length > 0 && excludeAdsets.some(kw => adsetName.includes(kw));
-                if (!shouldExclude) {
+                const adsetName = r.adset_name || '';
+                if (!excludeAdsets.includes(adsetName)) {
                     addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                    addMetric(r.date, 'impressions', parseInt(r.impressions || 0), r.country);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
                 }
             });
 
             mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             
-            // Steam processing: net_revenue is ALWAYS tracked in USD in your backend, regardless of country
             steam.forEach(r => {
                 const eurRev = toEur(parseFloat(r.net_revenue || 0), 'usd');
                 addMetric(r.date, 'net', eurRev * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country);
             });
             
-            // Stripe processing with Zero-Decimal Currency Support
             stripe.forEach(r => {
                 if (r.status === 'unpaid') return;
                 const curr = (r.currency || 'eur').toLowerCase();
-                // Check if the currency doesn't use decimals (Stripe provides KRW/JPY in full units, not cents)
                 const isZeroDecimal = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr);
                 const amt = isZeroDecimal ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
-                
                 const eurRev = toEur(amt, curr);
                 addMetric(r.created_at, 'net', eurRev * (1 - TAX_RATE), r.country);
             });
@@ -431,10 +441,12 @@
             document.getElementById('kpi-cps').innerText = totalSubs > 0 ? `€${(totalSpend / totalSubs).toFixed(2)}` : '€0.00';
             document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : '0.00x';
 
-            // Prepare Table Data
+            // Prepare Table Data (Calculate CPM/CPC here)
             countryAggData = Object.values(countryAgg).map(c => {
                 c.cps = c.subs > 0 ? c.spend / c.subs : 0;
                 c.roas = c.spend > 0 ? c.net / c.spend : 0;
+                c.cpm = c.impressions > 0 ? (c.spend / c.impressions) * 1000 : 0;
+                c.cpc = c.clicks > 0 ? c.spend / c.clicks : 0;
                 return c;
             }).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
 
@@ -470,6 +482,8 @@
             globalDashboardState.totalSpend = totalSpend;
             globalDashboardState.totalNet = totalNet;
             globalDashboardState.totalSubs = totalSubs;
+            globalDashboardState.totalImpressions = totalImpressions;
+            globalDashboardState.totalClicks = totalClicks;
 
             btn.innerText = "Load Data";
         }
@@ -494,10 +508,15 @@
 
             const sortedRoas = countryAggData.filter(c => c.roas > 0).map(c => c.roas).sort((a,b) => a - b);
             const sortedCps = countryAggData.filter(c => c.cps > 0).map(c => c.cps).sort((a,b) => a - b);
+            const sortedCpm = countryAggData.filter(c => c.cpm > 0).map(c => c.cpm).sort((a,b) => a - b);
+            const sortedCpc = countryAggData.filter(c => c.cpc > 0).map(c => c.cpc).sort((a,b) => a - b);
 
             tbody.innerHTML = countryAggData.map(c => {
                 const roasColor = getRankColor(c.roas, sortedRoas, true);
                 const cpsColor = c.subs > 0 ? getRankColor(c.cps, sortedCps, false) : 'transparent';
+                const cpmColor = c.impressions > 0 ? getRankColor(c.cpm, sortedCpm, false) : 'transparent';
+                const cpcColor = c.clicks > 0 ? getRankColor(c.cpc, sortedCpc, false) : 'transparent';
+                
                 const regionTag = c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : '';
 
                 return `
@@ -512,6 +531,8 @@
                     <td class="p-3 text-right text-blue-600 font-bold">${c.subs}</td>
                     <td class="p-3 text-right text-gray-800 font-medium" style="background-color: ${cpsColor}">€${c.cps.toFixed(2)}</td>
                     <td class="p-3 text-right text-gray-800 font-bold" style="background-color: ${roasColor}">${c.roas.toFixed(2)}x</td>
+                    <td class="p-3 text-right text-gray-600 text-xs" style="background-color: ${cpmColor}">€${c.cpm.toFixed(2)}</td>
+                    <td class="p-3 text-right text-gray-600 text-xs" style="background-color: ${cpcColor}">€${c.cpc.toFixed(2)}</td>
                 </tr>
             `}).join('');
         }
@@ -523,6 +544,9 @@
             const exAds = globalDashboardState.excludeAdsets.join(', ') || 'None';
             const cps = globalDashboardState.totalSubs > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalSubs).toFixed(2) : '0.00';
             const roas = globalDashboardState.totalSpend > 0 ? (globalDashboardState.totalNet / globalDashboardState.totalSpend).toFixed(2) : '0.00';
+            
+            const globalCpm = globalDashboardState.totalImpressions > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalImpressions) * 1000 : 0;
+            const globalCpc = globalDashboardState.totalClicks > 0 ? globalDashboardState.totalSpend / globalDashboardState.totalClicks : 0;
 
             let output = `## WonderLang Ad Spend & Revenue Analysis\n\n`;
             output += `### Dashboard Filter State\n`;
@@ -536,14 +560,16 @@
             output += `- **Total Net Revenue:** €${globalDashboardState.totalNet.toFixed(2)}\n`;
             output += `- **New Subscribers:** ${globalDashboardState.totalSubs}\n`;
             output += `- **Cost per Sub:** €${cps}\n`;
-            output += `- **ROAS:** ${roas}x\n\n`;
+            output += `- **ROAS:** ${roas}x\n`;
+            output += `- **Global CPM:** €${globalCpm.toFixed(2)}\n`;
+            output += `- **Global CPC:** €${globalCpc.toFixed(2)}\n\n`;
 
             output += `### Regional Performance Breakdown\n`;
-            output += `| Country | Region | Ad Spend (€) | Net Revenue (€) | Subscribers | Cost/Sub (€) | ROAS (x) |\n`;
-            output += `|---------|--------|--------------|-----------------|-------------|--------------|----------|\n`;
+            output += `| Country | Region | Ad Spend (€) | Net Rev (€) | Subs | Cost/Sub (€) | ROAS (x) | CPM (€) | CPC (€) |\n`;
+            output += `|---------|--------|--------------|-------------|------|--------------|----------|---------|---------|\n`;
 
             countryAggData.forEach(c => {
-                output += `| ${c.countryName} (${c.country}) | ${c.region} | ${c.spend.toFixed(2)} | ${c.net.toFixed(2)} | ${c.subs} | ${c.cps.toFixed(2)} | ${c.roas.toFixed(2)} |\n`;
+                output += `| ${c.countryName} (${c.country}) | ${c.region} | ${c.spend.toFixed(2)} | ${c.net.toFixed(2)} | ${c.subs} | ${c.cps.toFixed(2)} | ${c.roas.toFixed(2)} | ${c.cpm.toFixed(2)} | ${c.cpc.toFixed(2)} |\n`;
             });
 
             navigator.clipboard.writeText(output).then(() => {
