@@ -90,6 +90,10 @@
                 const result = await response.json();
 
                 if (response.ok) {
+                    // Print internal system logs from the ETL process
+    if (result.logs) {
+        result.logs.forEach(l => logToConsole(l.msg, l.type));
+    }
                     // Check if we hit the 'refresh' endpoint which has nested results
                     if (endpoint === 'refresh' && result.results) {
                         for (const [source, data] of Object.entries(result.results)) {
