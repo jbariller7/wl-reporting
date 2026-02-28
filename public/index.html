@@ -30,6 +30,7 @@
                 <div class="flex space-x-6">
                     <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2">Dashboard</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2">ROAS Scaling</button>
+                    <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Day of Week</button>
                     <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Data Sync</button>
                 </div>
             </div>
@@ -168,6 +169,36 @@
             </div>
         </div>
 
+        <div id="view-dow" class="hidden">
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+                <button onclick="loadDowData()" class="bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition text-sm font-bold">
+                    Generate Day of Week Matrix
+                </button>
+                <div class="text-xs text-gray-500 w-full mt-2">
+                    *Analyzes ROAS based on the day of the week. Heatmap colors are ranked <strong>row-by-row</strong> (meaning green is the best day for that specific country). Uses global exclusions from the Dashboard tab.
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
+                            <th class="p-3 font-bold">Country / Region</th>
+                            <th class="p-3 text-right font-bold">Monday</th>
+                            <th class="p-3 text-right font-bold">Tuesday</th>
+                            <th class="p-3 text-right font-bold">Wednesday</th>
+                            <th class="p-3 text-right font-bold">Thursday</th>
+                            <th class="p-3 text-right font-bold">Friday</th>
+                            <th class="p-3 text-right font-bold">Saturday</th>
+                            <th class="p-3 text-right font-bold">Sunday</th>
+                            <th class="p-3 text-right font-bold text-blue-800">Overall</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dow-table-body" class="text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="view-sync" class="hidden">
             <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
                 <h2 class="text-lg font-bold mb-4">Manual ETL Triggers</h2>
@@ -252,7 +283,6 @@
             return dStr.substring(0, 10);
         }
 
-        // Returns Monday of the week for grouping
         function getMonday(dStr) {
             const d = new Date(dStr);
             const day = d.getDay();
@@ -314,13 +344,16 @@
 
         // --- UI Tabs ---
         function switchTab(tab) {
-            ['dashboard', 'roas', 'sync'].forEach(t => {
+            ['dashboard', 'roas', 'dow', 'sync'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
-                btn.classList.toggle('text-gray-500', tab !== t);
-                btn.classList.toggle('tab-active', tab === t);
+                if(btn) {
+                    btn.classList.toggle('text-gray-500', tab !== t);
+                    btn.classList.toggle('tab-active', tab === t);
+                }
             });
-            if (tab === 'roas' && !roasChart) loadRoasData(); // Auto-load if blank
+            if (tab === 'roas' && !roasChart) loadRoasData(); 
+            if (tab === 'dow') loadDowData(); 
         }
 
         // --- MAIN DASHBOARD LOGIC ---
@@ -402,7 +435,6 @@
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
 
-            // Sync Dropdowns (Main Tab + ROAS Tab)
             [document.getElementById('dash-country'), document.getElementById('roas-country')].forEach(select => {
                 const currentFilter = select.value;
                 select.innerHTML = '<option value="ALL">All Locations</option>';
@@ -413,7 +445,6 @@
                 select.value = currentFilter || 'ALL';
             });
 
-            // Update KPIs
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
             document.getElementById('kpi-subs').innerText = totalSubs;
@@ -429,7 +460,6 @@
             }).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
             renderTable();
 
-            // Render Chart
             const sortedDates = Object.keys(dailyData).sort();
             if (myChart) myChart.destroy();
             myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
@@ -483,6 +513,174 @@
             `).join('');
         }
 
+        // --- ROAS SCALING TAB LOGIC ---
+        let roasChart = null;
+        async function loadRoasData() {
+            const raw = await fetchAllSheets();
+            const timeframe = document.getElementById('roas-timeframe').value; 
+            const filterSelection = document.getElementById('roas-country').value;
+            const startDate = document.getElementById('dash-start').value || "2000-01-01";
+            const endDate = document.getElementById('dash-end').value || "2099-12-31";
+            const excludedRanges = getExcludedDateRanges();
+            const excludeAdsets = Array.from(document.getElementById('dash-exclude-adsets').selectedOptions).map(opt => opt.value);
+
+            const aggregated = {};
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
+                    const periodKey = timeframe === 'weekly' ? getMonday(d) : d;
+                    if (!aggregated[periodKey]) aggregated[periodKey] = { period: periodKey, spend: 0, net: 0, subs: 0 };
+                    aggregated[periodKey][metric] += val;
+                }
+            };
+
+            raw.meta.forEach(r => { if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country); });
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    const curr = (r.currency || 'eur').toLowerCase();
+                    const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            const roasArr = Object.values(aggregated).map(p => {
+                p.roas = p.spend > 0 ? p.net / p.spend : 0;
+                p.cps = p.subs > 0 ? p.spend / p.subs : 0;
+                return p;
+            }).filter(p => p.spend > 0).sort((a, b) => a.spend - b.spend);
+
+            document.getElementById('roas-table-body').innerHTML = roasArr.map(p => `
+                <tr class="border-b transition hover:bg-gray-100">
+                    <td class="p-3 font-medium text-gray-800">${timeframe === 'weekly' ? 'Week of ' + p.period : p.period}</td>
+                    <td class="p-3 text-right text-red-600 font-bold">€${p.spend.toFixed(2)}</td>
+                    <td class="p-3 text-right text-green-600">€${p.net.toFixed(2)}</td>
+                    <td class="p-3 text-right text-blue-600">${p.subs}</td>
+                    <td class="p-3 text-right text-gray-800">€${p.cps.toFixed(2)}</td>
+                    <td class="p-3 text-right text-gray-800 font-bold">${p.roas.toFixed(2)}x</td>
+                </tr>
+            `).join('');
+
+            if (roasChart) roasChart.destroy();
+            roasChart = new Chart(document.getElementById('roasChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: roasArr.map(p => (timeframe === 'weekly' ? 'Wk: ' : '') + p.period),
+                    datasets: [
+                        { type: 'bar', label: 'Ad Spend (€)', data: roasArr.map(p => p.spend), backgroundColor: 'rgba(248, 113, 113, 0.5)', yAxisID: 'y' },
+                        { type: 'line', label: 'ROAS (x)', data: roasArr.map(p => p.roas), borderColor: '#a855f7', backgroundColor: '#a855f7', fill: false, tension: 0.1, yAxisID: 'y1' }
+                    ]
+                },
+                options: { responsive: true, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
+            });
+        }
+
+        // --- DAY OF WEEK TAB LOGIC ---
+        async function loadDowData() {
+            const btn = document.querySelector('button[onclick="loadDowData()"]');
+            if(btn) btn.innerText = "Generating...";
+
+            const raw = await fetchAllSheets();
+            const startDate = document.getElementById('dash-start').value || "2000-01-01";
+            const endDate = document.getElementById('dash-end').value || "2099-12-31";
+            const excludedRanges = getExcludedDateRanges();
+            const excludeAdsets = Array.from(document.getElementById('dash-exclude-adsets').selectedOptions).map(opt => opt.value);
+            const filterSelection = document.getElementById('dash-country').value; 
+
+            const agg = {};
+            const globalDays = Array(7).fill(0).map(() => ({ spend: 0, net: 0 }));
+            const globalTotal = { spend: 0, net: 0 };
+
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (!isFilteredIn) return;
+
+                const jsDate = new Date(d);
+                const dayIdx = (jsDate.getDay() + 6) % 7; // Shifts Sun=0 to Mon=0
+
+                if (!agg[cCode]) {
+                    agg[cCode] = {
+                        country: cCode, countryName: getCountryName(cCode),
+                        days: Array(7).fill(0).map(() => ({ spend: 0, net: 0 })),
+                        total: { spend: 0, net: 0 }
+                    };
+                }
+
+                agg[cCode].days[dayIdx][metric] += val;
+                agg[cCode].total[metric] += val;
+                globalDays[dayIdx][metric] += val;
+                globalTotal[metric] += val;
+            };
+
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+            });
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    const curr = (r.currency || 'eur').toLowerCase();
+                    const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            const arr = Object.values(agg).map(c => {
+                c.days.forEach(d => d.roas = d.spend > 0 ? d.net / d.spend : 0);
+                c.total.roas = c.total.spend > 0 ? c.total.net / c.total.spend : 0;
+                return c;
+            }).filter(c => c.total.spend > 0);
+
+            arr.sort((a, b) => b.total.spend - a.total.spend);
+
+            globalDays.forEach(d => d.roas = d.spend > 0 ? d.net / d.spend : 0);
+            globalTotal.roas = globalTotal.spend > 0 ? globalTotal.net / globalTotal.spend : 0;
+
+            const tbody = document.getElementById('dow-table-body');
+            let html = '';
+
+            const gSortedRoas = globalDays.map(d => d.roas).filter(r => r > 0).sort((a,b) => a - b);
+            html += `<tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
+                <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
+                ${globalDays.map(d => `<td class="p-3 text-right" style="background-color: ${getRankColor(d.roas, gSortedRoas, true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] font-normal text-gray-500">€${d.spend.toFixed(0)}</span></td>`).join('')}
+                <td class="p-3 text-right text-blue-800">${globalTotal.roas.toFixed(2)}x<br><span class="text-[10px] font-normal text-gray-500">€${globalTotal.spend.toFixed(0)}</span></td>
+            </tr>`;
+
+            arr.forEach(c => {
+                const sortedRoas = c.days.map(d => d.roas).filter(r => r > 0).sort((a,b) => a - b);
+                html += `<tr class="border-b transition hover:bg-gray-50">
+                    <td class="p-3 text-gray-800 font-medium">${c.countryName} <span class="text-xs text-gray-400">(${c.country})</span></td>
+                    ${c.days.map(d => `<td class="p-3 text-right font-medium" style="background-color: ${getRankColor(d.roas, sortedRoas, true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] text-gray-400 font-normal">€${d.spend.toFixed(0)}</span></td>`).join('')}
+                    <td class="p-3 text-right font-bold text-blue-800">${c.total.roas.toFixed(2)}x<br><span class="text-[10px] font-normal text-gray-500">€${c.total.spend.toFixed(0)}</span></td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+            if(btn) btn.innerText = "Generate Day of Week Matrix";
+        }
+
         function copyForGemini() {
             const btn = document.getElementById('btn-copy-gemini');
             const exDates = globalDashboardState.excludedRanges.map(r => `${r.start} to ${r.end}`).join(', ') || 'None';
@@ -501,103 +699,6 @@
                 setTimeout(() => { btn.innerText = oldText; btn.classList.replace('bg-green-100', 'bg-indigo-100'); btn.classList.replace('text-green-700', 'text-indigo-700'); }, 3000);
             });
         }
-
-
-        // --- ROAS SCALING TAB LOGIC ---
-        let roasChart = null;
-
-        async function loadRoasData() {
-            const raw = await fetchAllSheets();
-            const timeframe = document.getElementById('roas-timeframe').value; // 'daily' or 'weekly'
-            const filterSelection = document.getElementById('roas-country').value;
-            
-            // We reuse the date constraints and exclusions defined in the main dashboard tab
-            const startDate = document.getElementById('dash-start').value || "2000-01-01";
-            const endDate = document.getElementById('dash-end').value || "2099-12-31";
-            const excludedRanges = getExcludedDateRanges();
-            const excludeAdsets = Array.from(document.getElementById('dash-exclude-adsets').selectedOptions).map(opt => opt.value);
-
-            const aggregated = {};
-
-            const addMetric = (date, metric, val, countryCode) => {
-                if (!date || isNaN(val)) return;
-                const d = normalizeDate(date);
-                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
-                const regionNames = REGIONS[cCode] || [];
-
-                let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
-
-                if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
-                    // Key difference: Group by chosen timeframe
-                    const periodKey = timeframe === 'weekly' ? getMonday(d) : d;
-                    
-                    if (!aggregated[periodKey]) aggregated[periodKey] = { period: periodKey, spend: 0, net: 0, subs: 0 };
-                    aggregated[periodKey][metric] += val;
-                }
-            };
-
-            // Aggregate Data
-            raw.meta.forEach(r => {
-                if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
-            });
-            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
-            raw.stripe.forEach(r => {
-                if (r.status !== 'unpaid') {
-                    const curr = (r.currency || 'eur').toLowerCase();
-                    const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
-                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country);
-                }
-            });
-            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-
-            // Convert to array, calc metrics, filter zero spend, and SORT BY SPEND (ASCENDING)
-            const roasArr = Object.values(aggregated).map(p => {
-                p.roas = p.spend > 0 ? p.net / p.spend : 0;
-                p.cps = p.subs > 0 ? p.spend / p.subs : 0;
-                return p;
-            }).filter(p => p.spend > 0).sort((a, b) => a.spend - b.spend); // <-- Crucial: Sorted by Spend
-
-            // Render Table
-            const tbody = document.getElementById('roas-table-body');
-            tbody.innerHTML = roasArr.map(p => {
-                const displayPeriod = timeframe === 'weekly' ? `Week of ${p.period}` : p.period;
-                return `
-                <tr class="border-b transition hover:bg-gray-100">
-                    <td class="p-3 font-medium text-gray-800">${displayPeriod}</td>
-                    <td class="p-3 text-right text-red-600 font-bold">€${p.spend.toFixed(2)}</td>
-                    <td class="p-3 text-right text-green-600">€${p.net.toFixed(2)}</td>
-                    <td class="p-3 text-right text-blue-600">${p.subs}</td>
-                    <td class="p-3 text-right text-gray-800">€${p.cps.toFixed(2)}</td>
-                    <td class="p-3 text-right text-gray-800 font-bold">${p.roas.toFixed(2)}x</td>
-                </tr>
-            `}).join('');
-
-            // Render Chart
-            if (roasChart) roasChart.destroy();
-            roasChart = new Chart(document.getElementById('roasChart').getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: roasArr.map(p => (timeframe === 'weekly' ? 'Wk: ' : '') + p.period),
-                    datasets: [
-                        { type: 'bar', label: 'Ad Spend (€)', data: roasArr.map(p => p.spend), backgroundColor: 'rgba(248, 113, 113, 0.5)', yAxisID: 'y' },
-                        { type: 'line', label: 'ROAS (x)', data: roasArr.map(p => p.roas), borderColor: '#a855f7', backgroundColor: '#a855f7', fill: false, tension: 0.1, yAxisID: 'y1' }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Ad Spend (€)'} },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ROAS (x)'} }
-                    }
-                }
-            });
-        }
-
 
         window.onload = () => {
             const today = new Date();
