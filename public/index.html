@@ -40,7 +40,7 @@
 
     <div class="max-w-6xl mx-auto px-4">
         
-        <div class="bg-white p-5 rounded-lg shadow-md border-t-4 border-blue-600 mb-8 flex flex-wrap gap-4 items-start relative z-10">
+        <div id="global-filters" class="bg-white p-5 rounded-lg shadow-md border-t-4 border-blue-600 mb-8 flex flex-wrap gap-4 items-start relative z-10">
             <div class="flex flex-col gap-1">
                 <label class="text-sm font-bold text-gray-700">From Date</label>
                 <input type="date" id="dash-start" class="border rounded p-2 text-sm w-36">
@@ -62,10 +62,10 @@
                 <select id="dash-exclude-adsets" multiple class="border rounded p-2 text-sm w-64 h-20 bg-white shadow-inner"></select>
             </div>
 
-            <div class="flex flex-col gap-1 bg-gray-50 p-2 rounded border w-72">
-                <label class="text-sm font-bold text-gray-700">Exclude Dates</label>
-                <div id="exclude-date-rows" class="flex flex-col gap-1 max-h-20 overflow-y-auto"></div>
-                <button onclick="addExcludeRow()" class="text-xs text-blue-600 font-bold hover:underline text-left mt-1">+ Add Date Range</button>
+            <div class="flex flex-col gap-1 bg-gray-50 p-3 rounded border min-w-[420px] max-w-lg">
+                <label class="text-sm font-bold text-gray-700">Excluded Events / Dates</label>
+                <div id="exclude-date-rows" class="flex flex-col gap-1.5 max-h-24 overflow-y-auto pr-1"></div>
+                <button onclick="addExcludeRow()" class="text-xs text-blue-600 font-bold hover:underline text-left mt-2 w-max">+ Add Event</button>
             </div>
 
             <div class="flex flex-col gap-2 ml-auto mt-6 items-end">
@@ -378,25 +378,71 @@
         function saveRegions() { localStorage.setItem('wl-regions', document.getElementById('region-text').value); closeRegionModal(); loadRegions(); refreshAllViews(); }
         loadRegions();
 
-        // --- Exclude Dates Logic ---
-        function addExcludeRow(start = '', end = '') {
+        // --- Exclude Dates UI & Logic ---
+        function loadExcludedDates() {
+            const saved = JSON.parse(localStorage.getItem('wl-excludes') || '[]');
             const container = document.getElementById('exclude-date-rows');
-            const rowId = 'excl-' + Date.now() + Math.floor(Math.random() * 1000);
+            container.innerHTML = '';
+            if (saved.length === 0) {
+                // Add one empty row just to show the UI
+                addExcludeRowDOM();
+            } else {
+                saved.forEach(item => addExcludeRowDOM(item.id, item.active, item.name, item.start, item.end));
+            }
+        }
+
+        function addExcludeRowDOM(id = Date.now() + Math.floor(Math.random() * 1000), active = true, name = '', start = '', end = '') {
+            const container = document.getElementById('exclude-date-rows');
             const div = document.createElement('div');
-            div.id = rowId; div.className = "flex items-center gap-1";
-            div.innerHTML = `<input type="date" class="exclude-start border rounded p-1 text-xs w-[110px]" value="${start}"><span class="text-gray-400 text-xs">to</span><input type="date" class="exclude-end border rounded p-1 text-xs w-[110px]" value="${end}"><button onclick="document.getElementById('${rowId}').remove()" class="text-red-500 font-bold px-1.5 hover:bg-red-100 rounded">×</button>`;
+            div.id = 'excl-' + id;
+            div.className = "flex items-center gap-2 mb-1";
+            div.setAttribute('data-exclude-row', 'true');
+            div.innerHTML = `
+                <input type="checkbox" class="exclude-active cursor-pointer" title="Toggle active" ${active ? 'checked' : ''} onchange="saveExcludedDates()">
+                <input type="text" class="exclude-name border rounded p-1 text-xs w-28" placeholder="Name (e.g. Sale)" value="${name}" onchange="saveExcludedDates()" onkeyup="saveExcludedDates()">
+                <input type="date" class="exclude-start border rounded p-1 text-xs w-28" value="${start}" onchange="saveExcludedDates()">
+                <span class="text-gray-400 text-xs">to</span>
+                <input type="date" class="exclude-end border rounded p-1 text-xs w-28" value="${end}" onchange="saveExcludedDates()">
+                <button onclick="document.getElementById('excl-${id}').remove(); saveExcludedDates();" class="text-red-500 font-bold px-1.5 hover:bg-red-100 rounded" title="Delete Rule">×</button>
+            `;
             container.appendChild(div);
         }
+
+        function addExcludeRow() {
+            addExcludeRowDOM();
+            saveExcludedDates();
+        }
+
+        function saveExcludedDates() {
+            const ranges = [];
+            document.querySelectorAll('[data-exclude-row]').forEach(row => {
+                ranges.push({
+                    active: row.querySelector('.exclude-active').checked,
+                    name: row.querySelector('.exclude-name').value,
+                    start: row.querySelector('.exclude-start').value,
+                    end: row.querySelector('.exclude-end').value,
+                    id: row.id.replace('excl-', '')
+                });
+            });
+            localStorage.setItem('wl-excludes', JSON.stringify(ranges));
+        }
+
         function getExcludedDateRanges() {
             const ranges = [];
-            document.querySelectorAll('#exclude-date-rows > div').forEach(row => {
+            document.querySelectorAll('[data-exclude-row]').forEach(row => {
+                const isActive = row.querySelector('.exclude-active').checked;
+                if (!isActive) return;
                 const s = row.querySelector('.exclude-start').value;
                 const e = row.querySelector('.exclude-end').value;
-                if (s || e) ranges.push({ start: s || '2000-01-01', end: e || '2099-12-31' });
+                const n = row.querySelector('.exclude-name').value;
+                if (s || e) ranges.push({ name: n, start: s || '2000-01-01', end: e || '2099-12-31' });
             });
             return ranges;
         }
-        function isDateExcluded(dStr, excludeRanges) { return excludeRanges.some(r => dStr >= r.start && dStr <= r.end); }
+
+        function isDateExcluded(dStr, excludeRanges) { 
+            return excludeRanges.some(r => dStr >= r.start && dStr <= r.end); 
+        }
 
         function getRankColor(val, sortedArr, goodIsHigh) {
             if (!val || val <= 0 || sortedArr.length === 0) return 'transparent';
@@ -418,6 +464,12 @@
                     btn.classList.toggle('tab-active', tab === t);
                 }
             });
+            
+            // Hide the global filters specifically on the sync tab
+            const globalFilters = document.getElementById('global-filters');
+            if(globalFilters) {
+                globalFilters.classList.toggle('hidden', tab === 'sync');
+            }
         }
 
         // --- UNIFIED MASTER LOAD ---
@@ -432,10 +484,8 @@
             const raw = await fetchAllSheets();
             if(!raw) { btn.innerText = originalText; btn.disabled = false; return; }
 
-            // 1. Populate Dropdowns (Preserve selections)
             populateDropdowns(raw);
 
-            // 2. Read Global Filter States
             globalDashboardState.startDate = document.getElementById('dash-start').value || "2000-01-01";
             globalDashboardState.endDate = document.getElementById('dash-end').value || "2099-12-31";
             globalDashboardState.filterSelection = document.getElementById('dash-country').value;
@@ -444,7 +494,6 @@
             const adsetSelect = document.getElementById('dash-exclude-adsets');
             globalDashboardState.excludeAdsets = Array.from(adsetSelect.selectedOptions).map(opt => opt.value);
 
-            // 3. Trigger all local renders using cached data
             loadDashboardData(raw);
             loadFunnelData(raw);
             loadRoasData(raw);
@@ -455,7 +504,6 @@
         }
 
         function populateDropdowns(raw) {
-            // Ad Sets
             const adsetSelect = document.getElementById('dash-exclude-adsets');
             const selectedAdsets = Array.from(adsetSelect.selectedOptions).map(opt => opt.value);
             const uniqueAdsets = [...new Set(raw.meta.map(r => r.adset_name).filter(Boolean))].sort();
@@ -467,7 +515,6 @@
                 adsetSelect.add(opt);
             });
 
-            // Countries & Regions
             const countrySelect = document.getElementById('dash-country');
             const selectedCountry = countrySelect.value;
             const dropdownOptions = new Set();
@@ -836,7 +883,6 @@
                 const regionNames = REGIONS[cleanCode] || [];
                 const safeAdset = adsetName || 'Unattributed';
 
-                // Check global country/region filter
                 let isFilteredIn = false;
                 if (filterSelection === 'ALL') isFilteredIn = true;
                 else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
@@ -846,12 +892,10 @@
 
                 const dayIdx = (new Date(d).getDay() + 6) % 7; 
 
-                // Country
                 if (!aggC[cleanCode]) aggC[cleanCode] = createEmptyAgg(getCountryName(cleanCode) + ` (${cleanCode})`);
                 aggC[cleanCode].days[dayIdx][metric] += val;
                 aggC[cleanCode].total[metric] += val;
 
-                // Region
                 const regionsToCredit = regionNames.length > 0 ? regionNames : ['Other'];
                 regionsToCredit.forEach(reg => {
                     if (!aggR[reg]) aggR[reg] = createEmptyAgg(reg);
@@ -859,12 +903,10 @@
                     aggR[reg].total[metric] += val;
                 });
 
-                // Ad Set
                 if (!aggA[safeAdset]) aggA[safeAdset] = createEmptyAgg(safeAdset);
                 aggA[safeAdset].days[dayIdx][metric] += val;
                 aggA[safeAdset].total[metric] += val;
 
-                // Global
                 globalDays[dayIdx][metric] += val;
                 globalTotal[metric] += val;
             };
@@ -908,7 +950,10 @@
         function renderDowTables() {
             ['country', 'region', 'adset'].forEach(type => {
                 const arr = dowData[type];
-                if (!arr || arr.length === 0) return;
+                if (!arr || arr.length === 0) {
+                    document.getElementById(`dow-${type}-body`).innerHTML = '';
+                    return;
+                }
 
                 const sortDef = dowSort[type];
                 const dir = sortDef.desc ? -1 : 1;
@@ -955,8 +1000,11 @@
         // --- Export & Init Logic ---
         function copyForGemini() {
             const btn = document.getElementById('btn-copy-gemini');
-            const exDates = globalDashboardState.excludedRanges.map(r => `${r.start} to ${r.end}`).join(', ') || 'None';
+            
+            // Format exclusions to include the custom name
+            const exDates = globalDashboardState.excludedRanges.map(r => `${r.name ? r.name + ' (' : ''}${r.start} to ${r.end}${r.name ? ')' : ''}`).join(', ') || 'None';
             const exAds = globalDashboardState.excludeAdsets.join(', ') || 'None';
+            
             const cps = globalDashboardState.totalSubs > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalSubs).toFixed(2) : '0.00';
             const roas = globalDashboardState.totalSpend > 0 ? (globalDashboardState.totalNet / globalDashboardState.totalSpend).toFixed(2) : '0.00';
             const globalCpm = globalDashboardState.totalImp > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalImp) * 1000 : 0;
@@ -978,7 +1026,8 @@
             lastMonth.setDate(today.getDate() - 30);
             document.getElementById('dash-end').value = today.toISOString().split('T')[0];
             document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
-            addExcludeRow();
+            
+            loadExcludedDates();
             refreshAllViews();
         };
 
