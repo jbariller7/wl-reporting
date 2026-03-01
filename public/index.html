@@ -179,8 +179,8 @@
                                 High Cost, Low CTR.<br><span class="text-gray-600 font-medium">→ Renew ad creatives.</span>
                             </div>
                             <div class="bg-red-50 border border-red-300 p-2 rounded text-xs">
-                                <span class="font-bold text-red-600">LOW CONVERSION</span><br>
-                                Good CTR, Low Opt-in.<br><span class="text-gray-600 font-medium">→ Check landing page, Kill or Exclude.</span>
+                                <span class="font-bold text-red-600">FIX PAGE</span><br>
+                                Good CTR, Low Opt-in.<br><span class="text-gray-600 font-medium">→ Check landing page.</span>
                             </div>
                             <div class="bg-gray-100 border border-gray-400 p-2 rounded text-xs">
                                 <span class="font-bold text-gray-700">BAD LEADS</span><br>
@@ -207,6 +207,7 @@
                             <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'net')">Net Rev ↕</th>
                             <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'revps')">Rev/Sub ↕</th>
                             <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('country', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
                             <th class="p-3 text-center font-bold">Action</th>
                         </tr>
                     </thead>
@@ -230,6 +231,7 @@
                             <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'net')">Net Rev ↕</th>
                             <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'revps')">Rev/Sub ↕</th>
                             <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('region', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
                             <th class="p-3 text-center font-bold">Action</th>
                         </tr>
                     </thead>
@@ -253,6 +255,7 @@
                             <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'net')">Net Rev ↕</th>
                             <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'revps')">Rev/Sub ↕</th>
                             <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('adset', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
                             <th class="p-3 text-center font-bold">Action</th>
                         </tr>
                     </thead>
@@ -793,13 +796,33 @@
         function loadFunnelData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
 
+            const startD = new Date(startDate);
+            const endD = new Date(endDate);
+            // Calculate duration of current selection
+            const diffDays = Math.round((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // Calculate previous period boundaries
+            const prevEndD = new Date(startD);
+            prevEndD.setDate(prevEndD.getDate() - 1);
+            const prevStartD = new Date(prevEndD);
+            prevStartD.setDate(prevStartD.getDate() - diffDays + 1);
+
+            const prevStartDate = prevStartD.toISOString().split('T')[0];
+            const prevEndDate = prevEndD.toISOString().split('T')[0];
+
             const aggC = {}, aggR = {}, aggA = {};
+            const pAggC = {}, pAggR = {}, pAggA = {};
             const gTot = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+            const pTot = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
 
             const addMetric = (date, metric, val, countryCode, adsetName) => {
                 if (!date || isNaN(val)) return;
                 const d = normalizeDate(date);
-                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+                
+                const isCurrent = d >= startDate && d <= endDate && !isDateExcluded(d, excludedRanges);
+                const isPrev = d >= prevStartDate && d <= prevEndDate && !isDateExcluded(d, excludedRanges);
+
+                if (!isCurrent && !isPrev) return;
 
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
                 const regionNames = REGIONS[cCode] || [];
@@ -812,22 +835,41 @@
 
                 if (!isFilteredIn) return;
 
-                if (!aggC[cCode]) aggC[cCode] = { 
-                    name: getCountryName(cCode) + ` <span class="text-xs text-gray-400">(${cCode})</span>` + (regionNames.length > 0 ? ` <span class="text-[10px] text-blue-500 font-bold ml-1">[${regionNames.join(', ')}]</span>` : ''), 
-                    sortName: getCountryName(cCode), spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
-                };
-                aggC[cCode][metric] += val;
+                if (isCurrent) {
+                    if (!aggC[cCode]) aggC[cCode] = { 
+                        id: cCode,
+                        name: getCountryName(cCode) + ` <span class="text-xs text-gray-400">(${cCode})</span>` + (regionNames.length > 0 ? ` <span class="text-[10px] text-blue-500 font-bold ml-1">[${regionNames.join(', ')}]</span>` : ''), 
+                        sortName: getCountryName(cCode), spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
+                    };
+                    aggC[cCode][metric] += val;
 
-                const regionsToCredit = regionNames.length > 0 ? regionNames : ['Other'];
-                regionsToCredit.forEach(reg => {
-                    if (!aggR[reg]) aggR[reg] = { name: reg, sortName: reg, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
-                    aggR[reg][metric] += val;
-                });
+                    const regionsToCredit = regionNames.length > 0 ? regionNames : ['Other'];
+                    regionsToCredit.forEach(reg => {
+                        if (!aggR[reg]) aggR[reg] = { id: reg, name: reg, sortName: reg, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                        aggR[reg][metric] += val;
+                    });
 
-                if (!aggA[safeAdset]) aggA[safeAdset] = { name: safeAdset, sortName: safeAdset, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
-                aggA[safeAdset][metric] += val;
+                    if (!aggA[safeAdset]) aggA[safeAdset] = { id: safeAdset, name: safeAdset, sortName: safeAdset, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    aggA[safeAdset][metric] += val;
 
-                gTot[metric] += val;
+                    gTot[metric] += val;
+                }
+
+                if (isPrev) {
+                    if (!pAggC[cCode]) pAggC[cCode] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    pAggC[cCode][metric] += val;
+
+                    const regionsToCredit = regionNames.length > 0 ? regionNames : ['Other'];
+                    regionsToCredit.forEach(reg => {
+                        if (!pAggR[reg]) pAggR[reg] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                        pAggR[reg][metric] += val;
+                    });
+
+                    if (!pAggA[safeAdset]) pAggA[safeAdset] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    pAggA[safeAdset][metric] += val;
+
+                    pTot[metric] += val;
+                }
             };
 
             raw.meta.forEach(r => {
@@ -857,11 +899,24 @@
                 return c;
             };
 
+            const attachPrev = (currentArr, prevMap) => {
+                currentArr.forEach(c => {
+                    c.prevMetrics = prevMap[c.id] ? calcFunnel(prevMap[c.id]) : null;
+                });
+            };
+
             funnelData.country = Object.values(aggC).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
+            attachPrev(funnelData.country, pAggC);
+
             funnelData.region = Object.values(aggR).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
+            attachPrev(funnelData.region, pAggR);
+
             funnelData.adset = Object.values(aggA).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
+            attachPrev(funnelData.adset, pAggA);
             
             funnelData.global = calcFunnel(gTot);
+            funnelData.global.prevMetrics = calcFunnel(pTot);
+
             renderFunnelTables();
         }
 
@@ -876,6 +931,16 @@
             const targetCps = parseFloat(document.getElementById('target-cps').value) || 2.0;
             const targetCtr = parseFloat(document.getElementById('target-ctr').value) || 1.0;
             const targetOptin = parseFloat(document.getElementById('target-optin').value) || 20.0;
+
+            const getAction = (c) => {
+                if (!c || c.spend <= 0) return '-';
+                if (c.roas >= targetRoas) return 'SCALE';
+                if (c.roas >= 1.0) return 'REDUCE';
+                if (c.cps <= targetCps) return 'MONITOR';
+                if (c.ctr < targetCtr) return 'FIX ADS';
+                if (c.optin < targetOptin) return 'FIX PAGE';
+                return 'BAD LEADS';
+            };
 
             ['country', 'region', 'adset'].forEach(type => {
                 const arr = funnelData[type];
@@ -911,41 +976,39 @@
                             <td class="p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
                             <td class="p-3 text-right text-purple-800">${g.roas.toFixed(2)}x</td>
                             <td class="p-3 text-center">-</td>
+                            <td class="p-3 text-center">-</td>
                         </tr>
                     `;
                 }
 
                 html += arr.map(c => {
+                    const currentAction = getAction(c);
+                    const prevAction = getAction(c.prevMetrics);
+
                     let bgClass = 'hover:bg-gray-50';
                     let actionBadge = '-';
                     
-                    if (c.spend > 0) {
-                        const isGoodRoas = c.roas >= targetRoas;
-                        const isProfitable = c.roas >= 1.0;
-                        const isCheapSub = c.cps <= targetCps; // Infinity = false
-                        const isLowCtr = c.ctr < targetCtr;
-                        const isLowOptin = c.optin < targetOptin;
-
-                        if (isGoodRoas) {
-                            bgClass = 'bg-green-50 hover:bg-green-100';
-                            actionBadge = '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-[10px] font-bold shadow-sm">SCALE</span>';
-                        } else if (isProfitable) {
-                            bgClass = 'bg-blue-50 hover:bg-blue-100';
-                            actionBadge = '<span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-[10px] font-bold shadow-sm">REDUCE</span>';
-                        } else if (isCheapSub) {
-                            bgClass = 'bg-yellow-50 hover:bg-yellow-100';
-                            actionBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-[10px] font-bold shadow-sm">MONITOR</span>';
-                        } else if (isLowCtr) {
-                            bgClass = 'bg-orange-50 hover:bg-orange-100';
-                            actionBadge = '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-[10px] font-bold shadow-sm">FIX ADS</span>';
-                        } else if (isLowOptin) {
-                            bgClass = 'bg-red-50 hover:bg-red-100';
-                            actionBadge = '<span class="px-2 py-1 bg-red-200 text-red-800 rounded text-[10px] font-bold shadow-sm">FIX PAGE</span>';
-                        } else {
-                            bgClass = 'bg-gray-100 hover:bg-gray-200';
-                            actionBadge = '<span class="px-2 py-1 bg-gray-300 text-gray-800 rounded text-[10px] font-bold shadow-sm">BAD LEADS</span>';
-                        }
+                    if (currentAction === 'SCALE') {
+                        bgClass = 'bg-green-50 hover:bg-green-100';
+                        actionBadge = '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-[10px] font-bold shadow-sm">SCALE</span>';
+                    } else if (currentAction === 'REDUCE') {
+                        bgClass = 'bg-blue-50 hover:bg-blue-100';
+                        actionBadge = '<span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-[10px] font-bold shadow-sm">REDUCE</span>';
+                    } else if (currentAction === 'MONITOR') {
+                        bgClass = 'bg-yellow-50 hover:bg-yellow-100';
+                        actionBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-[10px] font-bold shadow-sm">MONITOR</span>';
+                    } else if (currentAction === 'FIX ADS') {
+                        bgClass = 'bg-orange-50 hover:bg-orange-100';
+                        actionBadge = '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-[10px] font-bold shadow-sm">FIX ADS</span>';
+                    } else if (currentAction === 'FIX PAGE') {
+                        bgClass = 'bg-red-50 hover:bg-red-100';
+                        actionBadge = '<span class="px-2 py-1 bg-red-200 text-red-800 rounded text-[10px] font-bold shadow-sm">FIX PAGE</span>';
+                    } else if (currentAction === 'BAD LEADS') {
+                        bgClass = 'bg-gray-100 hover:bg-gray-200';
+                        actionBadge = '<span class="px-2 py-1 bg-gray-300 text-gray-800 rounded text-[10px] font-bold shadow-sm">BAD LEADS</span>';
                     }
+
+                    const prevActionHtml = prevAction === '-' ? '-' : `<span class="text-gray-400 font-medium text-[10px] uppercase">${prevAction}</span>`;
 
                     return `
                         <tr class="border-b transition ${bgClass}">
@@ -960,6 +1023,7 @@
                             <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
                             <td class="p-3 text-right text-blue-800 font-medium">€${c.revps.toFixed(2)}</td>
                             <td class="p-3 text-right text-purple-700 font-bold">${c.roas.toFixed(2)}x</td>
+                            <td class="p-3 text-center">${prevActionHtml}</td>
                             <td class="p-3 text-center">${actionBadge}</td>
                         </tr>
                     `;
@@ -1180,7 +1244,6 @@
         function copyForGemini() {
             const btn = document.getElementById('btn-copy-gemini');
             
-            // Format exclusions to include the custom name
             const exDates = globalDashboardState.excludedRanges.map(r => `${r.name ? r.name + ' (' : ''}${r.start} to ${r.end}${r.name ? ')' : ''}`).join(', ') || 'None';
             const exAds = globalDashboardState.excludeAdsets.join(', ') || 'None';
             
