@@ -29,6 +29,7 @@
                 <div class="text-xl font-bold text-gray-800">WonderLang Reporting</div>
                 <div class="flex space-x-6">
                     <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2">Dashboard</button>
+                    <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Funnel Health</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2">ROAS Scaling</button>
                     <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Day of Week</button>
                     <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Data Sync</button>
@@ -121,6 +122,37 @@
                         </tr>
                     </thead>
                     <tbody id="country-table-body" class="text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-funnel" class="hidden">
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-end">
+                <button onclick="loadFunnelData()" class="bg-indigo-600 text-white px-5 py-2 rounded shadow hover:bg-indigo-700 transition text-sm font-bold">
+                    Generate Funnel Report
+                </button>
+                <div class="text-xs text-gray-500 w-full mt-2 flex flex-col gap-1">
+                    <p><strong>CTR (Click-Through Rate):</strong> Low CTR means your Ad Creative/Copy isn't working for that country.</p>
+                    <p><strong>Opt-in Rate:</strong> Low Opt-in means your Landing Page is failing (wrong language, slow load time, or disconnect from ad).</p>
+                    <p><strong>Rev / Sub:</strong> Low Revenue per Sub means you are buying cheap leads who don't have the money/intent to buy the game.</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 bg-gray-50 text-sm text-gray-700">
+                            <th class="p-3 cursor-pointer font-bold" onclick="sortFunnelTable('countryName')">Country / Region ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('imp')">Impressions ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('clicks')">Clicks ↕</th>
+                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('ctr')">CTR % ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('subs')">Subs ↕</th>
+                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('optin')">Opt-in Rate % ↕</th>
+                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('net')">Net Rev ↕</th>
+                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('revps')">Rev / Sub ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="funnel-table-body" class="text-sm"></tbody>
                 </table>
             </div>
         </div>
@@ -344,7 +376,7 @@
 
         // --- UI Tabs ---
         function switchTab(tab) {
-            ['dashboard', 'roas', 'dow', 'sync'].forEach(t => {
+            ['dashboard', 'roas', 'dow', 'funnel', 'sync'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
                 if(btn) {
@@ -354,6 +386,7 @@
             });
             if (tab === 'roas' && !roasChart) loadRoasData(); 
             if (tab === 'dow') loadDowData(); 
+            if (tab === 'funnel') loadFunnelData();
         }
 
         // --- MAIN DASHBOARD LOGIC ---
@@ -513,6 +546,140 @@
             `).join('');
         }
 
+        // --- FUNNEL HEALTH TAB LOGIC ---
+        let funnelAggData = [];
+        let currentFunnelSort = { col: 'imp', desc: true };
+
+        async function loadFunnelData() {
+            const btn = document.querySelector('button[onclick="loadFunnelData()"]');
+            if(btn) btn.innerText = "Generating Report...";
+
+            const raw = await fetchAllSheets();
+            const startDate = document.getElementById('dash-start').value || "2000-01-01";
+            const endDate = document.getElementById('dash-end').value || "2099-12-31";
+            const excludedRanges = getExcludedDateRanges();
+            const excludeAdsets = Array.from(document.getElementById('dash-exclude-adsets').selectedOptions).map(opt => opt.value);
+            const filterSelection = document.getElementById('dash-country').value; 
+
+            const agg = {};
+            const gTot = { imp: 0, clicks: 0, subs: 0, net: 0 };
+
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (!isFilteredIn) return;
+
+                if (!agg[cCode]) {
+                    agg[cCode] = { country: cCode, countryName: getCountryName(cCode), region: regionNames.length > 0 ? regionNames.join(', ') : 'Other', imp: 0, clicks: 0, subs: 0, net: 0 };
+                }
+
+                agg[cCode][metric] += val;
+                gTot[metric] += val;
+            };
+
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) {
+                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                }
+            });
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    const curr = (r.currency || 'eur').toLowerCase();
+                    const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            funnelAggData = Object.values(agg).map(c => {
+                c.ctr = c.imp > 0 ? (c.clicks / c.imp) * 100 : 0;
+                c.optin = c.clicks > 0 ? (c.subs / c.clicks) * 100 : 0;
+                c.revps = c.subs > 0 ? (c.net / c.subs) : 0;
+                return c;
+            }).filter(c => c.imp > 0 || c.clicks > 0 || c.subs > 0 || c.net > 0);
+
+            // Global Calculations
+            gTot.ctr = gTot.imp > 0 ? (gTot.clicks / gTot.imp) * 100 : 0;
+            gTot.optin = gTot.clicks > 0 ? (gTot.subs / gTot.clicks) * 100 : 0;
+            gTot.revps = gTot.subs > 0 ? (gTot.net / gTot.subs) : 0;
+            
+            // Store global in the array temporarily for easy rendering or just keep it separate
+            window.globalFunnelTotal = gTot;
+
+            renderFunnelTable();
+            if(btn) btn.innerText = "Generate Funnel Report";
+        }
+
+        function sortFunnelTable(col) {
+            if (currentFunnelSort.col === col) currentFunnelSort.desc = !currentFunnelSort.desc;
+            else { currentFunnelSort.col = col; currentFunnelSort.desc = true; }
+            renderFunnelTable();
+        }
+
+        function renderFunnelTable() {
+            const tbody = document.getElementById('funnel-table-body');
+            const col = currentFunnelSort.col;
+            const dir = currentFunnelSort.desc ? -1 : 1;
+
+            funnelAggData.sort((a, b) => {
+                if (typeof a[col] === 'string') return a[col].localeCompare(b[col]) * dir;
+                return (a[col] > b[col] ? 1 : -1) * dir;
+            });
+
+            // Extract values for rank-based heatmapping (Higher is always better for these 3 metrics)
+            const sCtr = funnelAggData.filter(c => c.ctr > 0).map(c => c.ctr).sort((a,b) => a - b);
+            const sOptin = funnelAggData.filter(c => c.optin > 0).map(c => c.optin).sort((a,b) => a - b);
+            const sRevps = funnelAggData.filter(c => c.revps > 0).map(c => c.revps).sort((a,b) => a - b);
+
+            let html = '';
+
+            // Render Global Row
+            if(window.globalFunnelTotal) {
+                const g = window.globalFunnelTotal;
+                html += `
+                    <tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
+                        <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
+                        <td class="p-3 text-right">${g.imp.toLocaleString()}</td>
+                        <td class="p-3 text-right">${g.clicks.toLocaleString()}</td>
+                        <td class="p-3 text-right text-blue-800">${g.ctr.toFixed(2)}%</td>
+                        <td class="p-3 text-right">${g.subs.toLocaleString()}</td>
+                        <td class="p-3 text-right text-blue-800">${g.optin.toFixed(2)}%</td>
+                        <td class="p-3 text-right">€${g.net.toFixed(2)}</td>
+                        <td class="p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
+
+            // Render Country Rows
+            html += funnelAggData.map(c => `
+                <tr class="border-b transition hover:bg-gray-50">
+                    <td class="p-3 text-gray-800"><span class="font-medium">${c.countryName}</span> <span class="text-xs text-gray-400 ml-1">(${c.country})</span> ${c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : ''}</td>
+                    <td class="p-3 text-right text-gray-600">${c.imp.toLocaleString()}</td>
+                    <td class="p-3 text-right text-gray-600">${c.clicks.toLocaleString()}</td>
+                    <td class="p-3 text-right font-medium" style="background-color: ${c.ctr > 0 ? getRankColor(c.ctr, sCtr, true) : 'transparent'}">${c.ctr.toFixed(2)}%</td>
+                    <td class="p-3 text-right text-gray-600">${c.subs.toLocaleString()}</td>
+                    <td class="p-3 text-right font-medium" style="background-color: ${c.optin > 0 ? getRankColor(c.optin, sOptin, true) : 'transparent'}">${c.optin.toFixed(2)}%</td>
+                    <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
+                    <td class="p-3 text-right font-bold" style="background-color: ${c.revps > 0 ? getRankColor(c.revps, sRevps, true) : 'transparent'}">€${c.revps.toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            tbody.innerHTML = html;
+        }
+
         // --- ROAS SCALING TAB LOGIC ---
         let roasChart = null;
         async function loadRoasData() {
@@ -618,7 +785,7 @@
                 if (!isFilteredIn) return;
 
                 const jsDate = new Date(d);
-                const dayIdx = (jsDate.getDay() + 6) % 7; // Shifts Sun=0 to Mon=0
+                const dayIdx = (jsDate.getDay() + 6) % 7; 
 
                 if (!agg[cCode]) {
                     agg[cCode] = {
