@@ -131,31 +131,114 @@
         </div>
 
         <div id="view-funnel" class="hidden">
-            <div class="flex justify-between items-end mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Funnel Drop-Off Analysis</h2>
-            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Funnel Health & Budget Optimizer</h2>
             
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700 flex flex-col gap-2">
-                <p><strong>CTR (Click-Through Rate):</strong> Low CTR means your Ad Creative/Copy isn't working for that country.</p>
-                <p><strong>Opt-in Rate:</strong> Low Opt-in means your Landing Page is failing (wrong language, slow load time, or bad hook).</p>
-                <p><strong>Rev / Sub:</strong> Low Revenue per Sub means you are getting cheap leads who don't have the money/intent to buy the game.</p>
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+                <div class="flex flex-wrap gap-6 items-start">
+                    <div class="flex flex-col gap-3 md:border-r border-gray-200 md:pr-6 w-full md:w-auto">
+                        <h3 class="font-bold text-gray-700">Optimizer Targets</h3>
+                        <div class="flex gap-4">
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs text-gray-500 uppercase font-bold">Target ROAS (x)</label>
+                                <input type="number" step="0.1" id="target-roas" class="border rounded p-2 text-sm w-24" onchange="saveOptimizerTargets()">
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label class="text-xs text-gray-500 uppercase font-bold">Target Cost/Sub (€)</label>
+                                <input type="number" step="0.1" id="target-cps" class="border rounded p-2 text-sm w-24" onchange="saveOptimizerTargets()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-2 flex-1">
+                        <h3 class="font-bold text-gray-700">Action Matrix Legend</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                            <div class="bg-green-50 border border-green-300 p-2 rounded text-xs">
+                                <span class="font-bold text-green-700">SCALE (Green)</span><br>
+                                Good ROAS, Cheap Subs.<br><span class="text-gray-600">→ Increase budget by 20%.</span>
+                            </div>
+                            <div class="bg-yellow-50 border border-yellow-300 p-2 rounded text-xs">
+                                <span class="font-bold text-yellow-700">MONITOR (Yellow)</span><br>
+                                Low ROAS, Cheap Subs.<br><span class="text-gray-600">→ Wait 3 days to convert.</span>
+                            </div>
+                            <div class="bg-orange-50 border border-orange-300 p-2 rounded text-xs">
+                                <span class="font-bold text-orange-700">WARNING (Orange)</span><br>
+                                Good ROAS, Expensive Subs.<br><span class="text-gray-600">→ Test new ad creatives.</span>
+                            </div>
+                            <div class="bg-red-50 border border-red-300 p-2 rounded text-xs">
+                                <span class="font-bold text-red-700">KILL (Red)</span><br>
+                                Low ROAS, Expensive Subs.<br><span class="text-gray-600">→ Turn off immediately.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">By Country</h3>
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
+                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('country', 'sortName')">Country / Region ↕</th>
+                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('country', 'spend')">Ad Spend ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'imp')">Imp. ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'clicks')">Clicks ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'ctr')">CTR % ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'subs')">Subs ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'optin')">Opt-in % ↕</th>
+                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('country', 'cps')">Cost/Sub ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'net')">Net Rev ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'revps')">Rev/Sub ↕</th>
+                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('country', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="funnel-country-body" class="text-sm"></tbody>
+                </table>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">By Region</h3>
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
+                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('region', 'sortName')">Region ↕</th>
+                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('region', 'spend')">Ad Spend ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'imp')">Imp. ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'clicks')">Clicks ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'ctr')">CTR % ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'subs')">Subs ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'optin')">Opt-in % ↕</th>
+                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('region', 'cps')">Cost/Sub ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'net')">Net Rev ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'revps')">Rev/Sub ↕</th>
+                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('region', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="funnel-region-body" class="text-sm"></tbody>
+                </table>
             </div>
 
             <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">By Ad Set</h3>
                 <table class="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-50 text-sm text-gray-700">
-                            <th class="p-3 cursor-pointer font-bold" onclick="sortFunnelTable('countryName')">Country / Region ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('imp')">Impressions ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('clicks')">Clicks ↕</th>
-                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('ctr')">CTR % ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('subs')">Subs ↕</th>
-                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('optin')">Opt-in Rate % ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortFunnelTable('net')">Net Rev ↕</th>
-                            <th class="p-3 cursor-pointer text-right font-bold text-blue-700" onclick="sortFunnelTable('revps')">Rev / Sub ↕</th>
+                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
+                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'sortName')">Ad Set ↕</th>
+                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'spend')">Ad Spend ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'imp')">Imp. ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'clicks')">Clicks ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'ctr')">CTR % ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'subs')">Subs ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'optin')">Opt-in % ↕</th>
+                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('adset', 'cps')">Cost/Sub ↕</th>
+                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'net')">Net Rev ↕</th>
+                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'revps')">Rev/Sub ↕</th>
+                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('adset', 'roas')">ROAS ↕</th>
+                            <th class="p-3 text-center font-bold">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="funnel-table-body" class="text-sm"></tbody>
+                    <tbody id="funnel-adset-body" class="text-sm"></tbody>
                 </table>
             </div>
         </div>
@@ -384,7 +467,6 @@
             const container = document.getElementById('exclude-date-rows');
             container.innerHTML = '';
             if (saved.length === 0) {
-                // Add one empty row just to show the UI
                 addExcludeRowDOM();
             } else {
                 saved.forEach(item => addExcludeRowDOM(item.id, item.active, item.name, item.start, item.end));
@@ -454,6 +536,18 @@
             return `hsl(${ratio * 120}, 80%, 85%)`; 
         }
 
+        // --- Target Optimizers UI ---
+        function loadOptimizerTargets() {
+            document.getElementById('target-roas').value = localStorage.getItem('wl-target-roas') || '2.0';
+            document.getElementById('target-cps').value = localStorage.getItem('wl-target-cps') || '2.0';
+        }
+        
+        function saveOptimizerTargets() {
+            localStorage.setItem('wl-target-roas', document.getElementById('target-roas').value);
+            localStorage.setItem('wl-target-cps', document.getElementById('target-cps').value);
+            renderFunnelTables(); // Re-color without full reload
+        }
+
         // --- UI Tabs ---
         function switchTab(tab) {
             ['dashboard', 'roas', 'dow', 'funnel', 'sync'].forEach(t => {
@@ -465,7 +559,6 @@
                 }
             });
             
-            // Hide the global filters specifically on the sync tab
             const globalFilters = document.getElementById('global-filters');
             if(globalFilters) {
                 globalFilters.classList.toggle('hidden', tab === 'sync');
@@ -671,23 +764,24 @@
             `).join('');
         }
 
-        // --- FUNNEL HEALTH TAB LOGIC ---
-        let funnelAggData = [];
-        let currentFunnelSort = { col: 'imp', desc: true };
+        // --- FUNNEL HEALTH & OPTIMIZER TAB LOGIC ---
+        let funnelData = { country: [], region: [], adset: [], global: null };
+        let funnelSort = { country: { col: 'spend', desc: true }, region: { col: 'spend', desc: true }, adset: { col: 'spend', desc: true } };
 
         function loadFunnelData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
 
-            const agg = {};
-            const gTot = { imp: 0, clicks: 0, subs: 0, net: 0 };
+            const aggC = {}, aggR = {}, aggA = {};
+            const gTot = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
 
-            const addMetric = (date, metric, val, countryCode) => {
+            const addMetric = (date, metric, val, countryCode, adsetName) => {
                 if (!date || isNaN(val)) return;
                 const d = normalizeDate(date);
                 if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
 
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
                 const regionNames = REGIONS[cCode] || [];
+                const safeAdset = adsetName || 'Unattributed';
 
                 let isFilteredIn = false;
                 if (filterSelection === 'ALL') isFilteredIn = true;
@@ -696,98 +790,151 @@
 
                 if (!isFilteredIn) return;
 
-                if (!agg[cCode]) {
-                    agg[cCode] = { country: cCode, countryName: getCountryName(cCode), region: regionNames.length > 0 ? regionNames.join(', ') : 'Other', imp: 0, clicks: 0, subs: 0, net: 0 };
-                }
+                if (!aggC[cCode]) aggC[cCode] = { 
+                    name: getCountryName(cCode) + ` <span class="text-xs text-gray-400">(${cCode})</span>` + (regionNames.length > 0 ? ` <span class="text-[10px] text-blue-500 font-bold ml-1">[${regionNames.join(', ')}]</span>` : ''), 
+                    sortName: getCountryName(cCode), spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
+                };
+                aggC[cCode][metric] += val;
 
-                agg[cCode][metric] += val;
+                const regionsToCredit = regionNames.length > 0 ? regionNames : ['Other'];
+                regionsToCredit.forEach(reg => {
+                    if (!aggR[reg]) aggR[reg] = { name: reg, sortName: reg, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    aggR[reg][metric] += val;
+                });
+
+                if (!aggA[safeAdset]) aggA[safeAdset] = { name: safeAdset, sortName: safeAdset, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                aggA[safeAdset][metric] += val;
+
                 gTot[metric] += val;
             };
 
             raw.meta.forEach(r => {
                 if (!excludeAdsets.includes(r.adset_name || '')) {
-                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
-                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country, r.adset_name);
+                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country, r.adset_name);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country, r.adset_name);
                 }
             });
-            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, null));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, null));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     const curr = (r.currency || 'eur').toLowerCase();
                     const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
-                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country);
+                    addMetric(r.created_at, 'net', toEur(amt, curr) * (1 - TAX_RATE), r.country, null);
                 }
             });
-            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country, null));
 
-            funnelAggData = Object.values(agg).map(c => {
+            const calcFunnel = (c) => {
                 c.ctr = c.imp > 0 ? (c.clicks / c.imp) * 100 : 0;
                 c.optin = c.clicks > 0 ? (c.subs / c.clicks) * 100 : 0;
                 c.revps = c.subs > 0 ? (c.net / c.subs) : 0;
+                c.cps = c.subs > 0 ? (c.spend / c.subs) : (c.spend > 0 ? Infinity : 0);
+                c.roas = c.spend > 0 ? (c.net / c.spend) : 0;
                 return c;
-            }).filter(c => c.imp > 0 || c.clicks > 0 || c.subs > 0 || c.net > 0);
+            };
 
-            gTot.ctr = gTot.imp > 0 ? (gTot.clicks / gTot.imp) * 100 : 0;
-            gTot.optin = gTot.clicks > 0 ? (gTot.subs / gTot.clicks) * 100 : 0;
-            gTot.revps = gTot.subs > 0 ? (gTot.net / gTot.subs) : 0;
+            funnelData.country = Object.values(aggC).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
+            funnelData.region = Object.values(aggR).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
+            funnelData.adset = Object.values(aggA).map(calcFunnel).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.imp > 0);
             
-            window.globalFunnelTotal = gTot;
-            renderFunnelTable();
+            funnelData.global = calcFunnel(gTot);
+            renderFunnelTables();
         }
 
-        function sortFunnelTable(col) {
-            if (currentFunnelSort.col === col) currentFunnelSort.desc = !currentFunnelSort.desc;
-            else { currentFunnelSort.col = col; currentFunnelSort.desc = true; }
-            renderFunnelTable();
+        function sortFunnelTable(type, col) {
+            if (funnelSort[type].col === col) funnelSort[type].desc = !funnelSort[type].desc;
+            else { funnelSort[type].col = col; funnelSort[type].desc = true; }
+            renderFunnelTables();
         }
 
-        function renderFunnelTable() {
-            const tbody = document.getElementById('funnel-table-body');
-            const col = currentFunnelSort.col;
-            const dir = currentFunnelSort.desc ? -1 : 1;
+        function renderFunnelTables() {
+            const targetRoas = parseFloat(document.getElementById('target-roas').value) || 2.0;
+            const targetCps = parseFloat(document.getElementById('target-cps').value) || 2.0;
 
-            funnelAggData.sort((a, b) => {
-                if (typeof a[col] === 'string') return a[col].localeCompare(b[col]) * dir;
-                return (a[col] > b[col] ? 1 : -1) * dir;
+            ['country', 'region', 'adset'].forEach(type => {
+                const arr = funnelData[type];
+                const tbody = document.getElementById(`funnel-${type}-body`);
+                if (!arr || arr.length === 0) {
+                    tbody.innerHTML = '';
+                    return;
+                }
+
+                const sortDef = funnelSort[type];
+                const dir = sortDef.desc ? -1 : 1;
+
+                arr.sort((a, b) => {
+                    if (typeof a[sortDef.col] === 'string') return a[sortDef.col].localeCompare(b[sortDef.col]) * dir;
+                    return (a[sortDef.col] > b[sortDef.col] ? 1 : -1) * dir;
+                });
+
+                let html = '';
+
+                // Add global average to country table only
+                if (type === 'country' && funnelData.global) {
+                    const g = funnelData.global;
+                    html += `
+                        <tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
+                            <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
+                            <td class="p-3 text-right">€${g.spend.toFixed(2)}</td>
+                            <td class="p-3 text-right">${g.imp.toLocaleString()}</td>
+                            <td class="p-3 text-right">${g.clicks.toLocaleString()}</td>
+                            <td class="p-3 text-right text-blue-800">${g.ctr.toFixed(2)}%</td>
+                            <td class="p-3 text-right">${g.subs.toLocaleString()}</td>
+                            <td class="p-3 text-right text-blue-800">${g.optin.toFixed(2)}%</td>
+                            <td class="p-3 text-right">€${g.cps === Infinity ? '∞' : g.cps.toFixed(2)}</td>
+                            <td class="p-3 text-right">€${g.net.toFixed(2)}</td>
+                            <td class="p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
+                            <td class="p-3 text-right text-purple-800">${g.roas.toFixed(2)}x</td>
+                            <td class="p-3 text-center">-</td>
+                        </tr>
+                    `;
+                }
+
+                html += arr.map(c => {
+                    let bgClass = 'hover:bg-gray-50';
+                    let actionBadge = '-';
+                    
+                    if (c.spend > 0) {
+                        const isGoodRoas = c.roas >= targetRoas;
+                        const isCheapSub = c.cps <= targetCps; // If CPS is Infinity, this is false (correct)
+
+                        if (isGoodRoas && isCheapSub) {
+                            bgClass = 'bg-green-50 hover:bg-green-100';
+                            actionBadge = '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-[10px] font-bold">SCALE</span>';
+                        } else if (!isGoodRoas && isCheapSub) {
+                            bgClass = 'bg-yellow-50 hover:bg-yellow-100';
+                            actionBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-[10px] font-bold">MONITOR</span>';
+                        } else if (isGoodRoas && !isCheapSub) {
+                            bgClass = 'bg-orange-50 hover:bg-orange-100';
+                            actionBadge = '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-[10px] font-bold">WARNING</span>';
+                        } else {
+                            bgClass = 'bg-red-50 hover:bg-red-100';
+                            actionBadge = '<span class="px-2 py-1 bg-red-200 text-red-800 rounded text-[10px] font-bold">KILL</span>';
+                        }
+                    }
+
+                    return `
+                        <tr class="border-b transition ${bgClass}">
+                            <td class="p-3 text-gray-800 font-medium truncate max-w-[200px]" title="${c.sortName}">${c.name}</td>
+                            <td class="p-3 text-right">€${c.spend.toFixed(2)}</td>
+                            <td class="p-3 text-right text-gray-600">${c.imp.toLocaleString()}</td>
+                            <td class="p-3 text-right text-gray-600">${c.clicks.toLocaleString()}</td>
+                            <td class="p-3 text-right text-blue-800 font-medium">${c.ctr.toFixed(2)}%</td>
+                            <td class="p-3 text-right text-gray-600">${c.subs.toLocaleString()}</td>
+                            <td class="p-3 text-right text-blue-800 font-medium">${c.optin.toFixed(2)}%</td>
+                            <td class="p-3 text-right text-gray-800 font-medium">${c.cps === Infinity ? '∞' : '€' + c.cps.toFixed(2)}</td>
+                            <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
+                            <td class="p-3 text-right text-blue-800 font-medium">€${c.revps.toFixed(2)}</td>
+                            <td class="p-3 text-right text-purple-700 font-bold">${c.roas.toFixed(2)}x</td>
+                            <td class="p-3 text-center">${actionBadge}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tbody.innerHTML = html;
             });
-
-            const sCtr = funnelAggData.filter(c => c.ctr > 0).map(c => c.ctr).sort((a,b) => a - b);
-            const sOptin = funnelAggData.filter(c => c.optin > 0).map(c => c.optin).sort((a,b) => a - b);
-            const sRevps = funnelAggData.filter(c => c.revps > 0).map(c => c.revps).sort((a,b) => a - b);
-
-            let html = '';
-
-            if(window.globalFunnelTotal) {
-                const g = window.globalFunnelTotal;
-                html += `
-                    <tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
-                        <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
-                        <td class="p-3 text-right">${g.imp.toLocaleString()}</td>
-                        <td class="p-3 text-right">${g.clicks.toLocaleString()}</td>
-                        <td class="p-3 text-right text-blue-800">${g.ctr.toFixed(2)}%</td>
-                        <td class="p-3 text-right">${g.subs.toLocaleString()}</td>
-                        <td class="p-3 text-right text-blue-800">${g.optin.toFixed(2)}%</td>
-                        <td class="p-3 text-right">€${g.net.toFixed(2)}</td>
-                        <td class="p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
-                    </tr>
-                `;
-            }
-
-            html += funnelAggData.map(c => `
-                <tr class="border-b transition hover:bg-gray-50">
-                    <td class="p-3 text-gray-800"><span class="font-medium">${c.countryName}</span> <span class="text-xs text-gray-400 ml-1">(${c.country})</span> ${c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : ''}</td>
-                    <td class="p-3 text-right text-gray-600">${c.imp.toLocaleString()}</td>
-                    <td class="p-3 text-right text-gray-600">${c.clicks.toLocaleString()}</td>
-                    <td class="p-3 text-right font-medium" style="background-color: ${c.ctr > 0 ? getRankColor(c.ctr, sCtr, true) : 'transparent'}">${c.ctr.toFixed(2)}%</td>
-                    <td class="p-3 text-right text-gray-600">${c.subs.toLocaleString()}</td>
-                    <td class="p-3 text-right font-medium" style="background-color: ${c.optin > 0 ? getRankColor(c.optin, sOptin, true) : 'transparent'}">${c.optin.toFixed(2)}%</td>
-                    <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
-                    <td class="p-3 text-right font-bold" style="background-color: ${c.revps > 0 ? getRankColor(c.revps, sRevps, true) : 'transparent'}">€${c.revps.toFixed(2)}</td>
-                </tr>
-            `).join('');
-
-            tbody.innerHTML = html;
         }
 
         // --- ROAS SCALING TAB LOGIC ---
@@ -1028,6 +1175,7 @@
             document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
             
             loadExcludedDates();
+            loadOptimizerTargets(); // Ensure optimizer targets are loaded on boot
             refreshAllViews();
         };
 
