@@ -1286,16 +1286,50 @@
             });
         }
 
-        window.onload = () => {
-            const today = new Date();
-            const lastMonth = new Date();
-            lastMonth.setDate(today.getDate() - 30);
-            document.getElementById('dash-end').value = today.toISOString().split('T')[0];
-            document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
+window.onload = async () => {
+            // --- SECURE PIN CHECK ---
+            let pin = localStorage.getItem('wl-pin');
+            if (!pin) pin = prompt("Enter Dashboard PIN:");
+
+            if (!pin) {
+                document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif;'>Authentication Required</h1>";
+                return;
+            }
+
+            // Hide the dashboard UI while we verify the PIN with Netlify
+            document.body.style.opacity = '0.2';
             
-            loadExcludedDates();
-            loadOptimizerTargets();
-            refreshAllViews();
+            try {
+                const res = await fetch('/.netlify/functions/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                });
+
+                if (res.ok) {
+                    // PIN is correct! Save it and boot the app.
+                    localStorage.setItem('wl-pin', pin);
+                    document.body.style.opacity = '1';
+                    
+                    const today = new Date();
+                    const lastMonth = new Date();
+                    lastMonth.setDate(today.getDate() - 30);
+                    document.getElementById('dash-end').value = today.toISOString().split('T')[0];
+                    document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
+                    
+                    loadExcludedDates();
+                    loadOptimizerTargets();
+                    refreshAllViews();
+                } else {
+                    // PIN is wrong
+                    localStorage.removeItem('wl-pin');
+                    document.body.style.opacity = '1';
+                    document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif; color:red;'>Incorrect PIN. Refresh the page to try again.</h1>";
+                }
+            } catch (e) {
+                document.body.style.opacity = '1';
+                document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif;'>Error connecting to auth server.</h1>";
+            }
         };
 
         // --- ETL Sync Logic ---
