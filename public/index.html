@@ -19,170 +19,182 @@
         th:hover { background-color: #e5e7eb; }
         .modal-bg { background-color: rgba(0, 0, 0, 0.5); }
         select[multiple] { scrollbar-width: thin; }
+        /* Hide scrollbar for top nav on mobile */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen overflow-x-hidden">
 
-    <nav class="bg-white shadow-sm mb-6">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="text-xl font-bold text-gray-800">WonderLang Reporting</div>
-                <div class="flex space-x-6">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2">Dashboard</button>
-                    <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Funnel Health</button>
-                    <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2">ROAS Scaling</button>
-                    <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Day of Week</button>
-                    <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2">Data Sync</button>
+    <nav class="bg-white shadow-sm mb-4 sm:mb-6">
+        <div class="max-w-[95%] xl:max-w-[1400px] mx-auto px-3 sm:px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center py-3 sm:py-4 gap-3 md:gap-0">
+                <div class="text-xl font-bold text-gray-800 w-full text-center md:text-left">WonderLang Reporting</div>
+                <div class="flex space-x-2 sm:space-x-6 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-hide justify-start md:justify-end text-sm sm:text-base whitespace-nowrap px-1">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2 shrink-0">Dashboard</button>
+                    <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Funnel Health</button>
+                    <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">ROAS Scaling</button>
+                    <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
+                    <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Data Sync</button>
                 </div>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4">
+    <div class="max-w-[95%] xl:max-w-[1400px] mx-auto px-3 sm:px-4 pb-10">
         
-        <div id="global-filters" class="bg-white p-5 rounded-lg shadow-md border-t-4 border-blue-600 mb-8 flex flex-wrap gap-4 items-start relative z-10">
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-bold text-gray-700">From Date</label>
-                <input type="date" id="dash-start" class="border rounded p-2 text-sm w-36">
-            </div>
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-bold text-gray-700">To Date</label>
-                <input type="date" id="dash-end" class="border rounded p-2 text-sm w-36">
+        <div id="global-filters" class="bg-white p-4 sm:p-5 rounded-lg shadow-md border-t-4 border-blue-600 mb-6 sm:mb-8 flex flex-col lg:flex-row flex-wrap gap-4 sm:gap-6 items-start relative z-10">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-4 w-full lg:w-auto">
+                <div class="flex flex-col gap-1 w-full lg:w-36">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">From Date</label>
+                    <input type="date" id="dash-start" class="border rounded p-2 text-sm w-full">
+                </div>
+                <div class="flex flex-col gap-1 w-full lg:w-36">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">To Date</label>
+                    <input type="date" id="dash-end" class="border rounded p-2 text-sm w-full">
+                </div>
             </div>
             
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-bold text-gray-700">Country / Region Filter</label>
-                <select id="dash-country" class="border rounded p-2 text-sm w-56">
-                    <option value="ALL">All Locations</option>
-                </select>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-4 w-full lg:w-auto">
+                <div class="flex flex-col gap-1 w-full lg:w-56">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">Country / Region Filter</label>
+                    <select id="dash-country" class="border rounded p-2 text-sm w-full">
+                        <option value="ALL">All Locations</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1 w-full lg:w-64">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">Exclude Ad Sets <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
+                    <select id="dash-exclude-adsets" multiple class="border rounded p-2 text-sm w-full h-20 bg-white shadow-inner"></select>
+                </div>
             </div>
 
-            <div class="flex flex-col gap-1">
-                <label class="text-sm font-bold text-gray-700">Exclude Ad Sets <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
-                <select id="dash-exclude-adsets" multiple class="border rounded p-2 text-sm w-64 h-20 bg-white shadow-inner"></select>
-            </div>
-
-            <div class="flex flex-col gap-1 bg-gray-50 p-3 rounded border min-w-[420px] max-w-lg">
-                <label class="text-sm font-bold text-gray-700">Excluded Events / Dates</label>
-                <div id="exclude-date-rows" class="flex flex-col gap-1.5 max-h-24 overflow-y-auto pr-1"></div>
+            <div class="flex flex-col gap-1 bg-gray-50 p-3 rounded border w-full lg:flex-1 lg:min-w-[320px] xl:max-w-lg">
+                <label class="text-xs sm:text-sm font-bold text-gray-700">Excluded Events / Dates</label>
+                <div id="exclude-date-rows" class="flex flex-col gap-1.5 max-h-32 lg:max-h-24 overflow-y-auto pr-1"></div>
                 <button onclick="addExcludeRow()" class="text-xs text-blue-600 font-bold hover:underline text-left mt-2 w-max">+ Add Event</button>
             </div>
 
-            <div class="flex flex-col gap-2 ml-auto mt-6 items-end">
-                <div class="flex gap-2">
-                    <button onclick="openRegionModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition text-sm font-medium">⚙️ Edit Regions</button>
-                    <button onclick="refreshAllViews()" id="btn-global-load" class="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition text-sm font-bold">Apply Filters</button>
+            <div class="flex flex-col gap-2 w-full xl:w-auto mt-2 xl:mt-6 items-stretch xl:items-end xl:ml-auto">
+                <div class="flex flex-col sm:flex-row gap-2 w-full">
+                    <button onclick="openRegionModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 transition text-sm font-medium w-full sm:w-auto">⚙️ Edit Regions</button>
+                    <button onclick="refreshAllViews()" id="btn-global-load" class="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition text-sm font-bold w-full sm:w-auto">Apply Filters</button>
                 </div>
-                <div class="text-xs text-gray-400 text-right mt-1">Updates all tabs instantly</div>
+                <div class="text-xs text-gray-400 text-center sm:text-right mt-1">Updates all tabs instantly</div>
             </div>
         </div>
 
         <div id="view-dashboard">
-            <div class="flex justify-between items-end mb-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Macro Overview</h2>
-                <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm font-medium">📋 Copy data for Gemini</button>
+                <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm font-medium w-full sm:w-auto">📋 Copy data for Gemini</button>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">Meta Ad Spend</div>
-                    <div class="text-xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-red-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Meta Ad Spend</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
                 </div>
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">Net Revenue <span class="text-[10px] lowercase text-gray-400 font-normal">(-Steam/Tax)</span></div>
-                    <div class="text-xl font-bold text-gray-800" id="kpi-net">€0.00</div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-green-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Net Revenue <span class="text-[9px] lowercase text-gray-400 font-normal hidden sm:inline">(-Steam/Tax)</span></div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-net">€0.00</div>
                 </div>
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">Subscribers</div>
-                    <div class="text-xl font-bold text-gray-800" id="kpi-subs">0</div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-blue-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Subscribers</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-subs">0</div>
                 </div>
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">Cost Per Sub</div>
-                    <div class="text-xl font-bold text-gray-800" id="kpi-cps">€0.00</div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-yellow-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Cost Per Sub</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-cps">€0.00</div>
                 </div>
-                <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-400">
-                    <div class="text-xs text-gray-500 font-medium uppercase">ROAS</div>
-                    <div class="text-xl font-bold text-gray-800" id="kpi-roas">0.00x</div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-purple-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">ROAS</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-roas">0.00x</div>
                 </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-6">
-                <canvas id="mainChart" height="80"></canvas>
+            <div class="bg-white p-3 sm:p-5 rounded-lg shadow-sm mb-6 w-full overflow-hidden">
+                <canvas id="mainChart"></canvas>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Regional Performance Breakdown</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-200 bg-gray-50 text-sm text-gray-600">
-                            <th class="p-3 cursor-pointer" onclick="sortTable('countryName')">Country / Region ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('spend')">Ad Spend ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('net')">Net Revenue ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('subs')">Subscribers ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cps')">Cost / Sub ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('roas')">ROAS ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cpm')">CPM ↕</th>
-                            <th class="p-3 cursor-pointer text-right" onclick="sortTable('cpc')">CPC ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="country-table-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="p-4 sm:p-0">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2 sm:mb-4">Regional Performance Breakdown</h3>
+                </div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200 bg-gray-50 text-xs sm:text-sm text-gray-600">
+                                <th class="p-2 sm:p-3 cursor-pointer" onclick="sortTable('countryName')">Country / Region ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('spend')">Ad Spend ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('net')">Net Revenue ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('subs')">Subscribers ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('cps')">Cost / Sub ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('roas')">ROAS ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('cpm')">CPM ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortTable('cpc')">CPC ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="country-table-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div id="view-funnel" class="hidden">
             <h2 class="text-xl font-bold text-gray-800 mb-4">Funnel Health & Action Matrix</h2>
             
-            <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
-                <div class="flex flex-wrap gap-6 items-start">
-                    <div class="flex flex-col gap-3 md:border-r border-gray-200 md:pr-6 w-full md:w-auto">
-                        <h3 class="font-bold text-gray-700">Optimizer Targets</h3>
-                        <div class="flex gap-4">
-                            <div class="flex flex-col gap-1">
-                                <label class="text-[10px] text-gray-500 uppercase font-bold">Target ROAS</label>
-                                <input type="number" step="0.1" id="target-roas" class="border rounded p-1.5 text-sm w-20" onchange="saveOptimizerTargets()">
+            <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+                <div class="flex flex-col lg:flex-row gap-6 items-start">
+                    
+                    <div class="flex flex-col sm:flex-row lg:flex-col gap-4 lg:border-r border-gray-200 lg:pr-6 w-full lg:w-auto shrink-0">
+                        <h3 class="font-bold text-gray-700 w-full sm:w-auto lg:w-full">Optimizer Targets</h3>
+                        <div class="grid grid-cols-2 sm:flex gap-3 sm:gap-4 w-full sm:w-auto">
+                            <div class="flex flex-col gap-1 w-full">
+                                <label class="text-[10px] text-gray-500 uppercase font-bold truncate">Target ROAS</label>
+                                <input type="number" step="0.1" id="target-roas" class="border rounded p-1.5 text-sm w-full sm:w-20" onchange="saveOptimizerTargets()">
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-[10px] text-gray-500 uppercase font-bold">Target Cost/Sub</label>
-                                <input type="number" step="0.1" id="target-cps" class="border rounded p-1.5 text-sm w-20" onchange="saveOptimizerTargets()">
+                            <div class="flex flex-col gap-1 w-full">
+                                <label class="text-[10px] text-gray-500 uppercase font-bold truncate">Target Cost/Sub</label>
+                                <input type="number" step="0.1" id="target-cps" class="border rounded p-1.5 text-sm w-full sm:w-20" onchange="saveOptimizerTargets()">
                             </div>
                         </div>
-                        <div class="flex gap-4">
-                            <div class="flex flex-col gap-1">
-                                <label class="text-[10px] text-gray-500 uppercase font-bold">Target CTR %</label>
-                                <input type="number" step="0.1" id="target-ctr" class="border rounded p-1.5 text-sm w-20" onchange="saveOptimizerTargets()">
+                        <div class="grid grid-cols-2 sm:flex gap-3 sm:gap-4 w-full sm:w-auto">
+                            <div class="flex flex-col gap-1 w-full">
+                                <label class="text-[10px] text-gray-500 uppercase font-bold truncate">Target CTR %</label>
+                                <input type="number" step="0.1" id="target-ctr" class="border rounded p-1.5 text-sm w-full sm:w-20" onchange="saveOptimizerTargets()">
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <label class="text-[10px] text-gray-500 uppercase font-bold">Target Opt-in %</label>
-                                <input type="number" step="1" id="target-optin" class="border rounded p-1.5 text-sm w-20" onchange="saveOptimizerTargets()">
+                            <div class="flex flex-col gap-1 w-full">
+                                <label class="text-[10px] text-gray-500 uppercase font-bold truncate">Target Opt-in %</label>
+                                <input type="number" step="1" id="target-optin" class="border rounded p-1.5 text-sm w-full sm:w-20" onchange="saveOptimizerTargets()">
                             </div>
                         </div>
                     </div>
                     
-                    <div class="flex flex-col gap-2 flex-1">
+                    <div class="flex flex-col gap-2 w-full flex-1">
                         <h3 class="font-bold text-gray-700">Diagnostic Legend (Automated Actions)</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
-                            <div class="bg-green-50 border border-green-300 p-2 rounded text-xs">
+                        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 w-full">
+                            <div class="bg-green-50 border border-green-300 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-green-700">SCALE</span><br>
                                 Beating Target ROAS.<br><span class="text-gray-600 font-medium">→ Increase budget!</span>
                             </div>
-                            <div class="bg-blue-50 border border-blue-300 p-2 rounded text-xs">
+                            <div class="bg-blue-50 border border-blue-300 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-blue-700">REDUCE</span><br>
                                 ROAS &gt; 1.0 but &lt; Target.<br><span class="text-gray-600 font-medium">→ Lower budget slightly.</span>
                             </div>
-                            <div class="bg-yellow-50 border border-yellow-300 p-2 rounded text-xs">
+                            <div class="bg-yellow-50 border border-yellow-300 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-yellow-700">MONITOR</span><br>
                                 Low ROAS, Cheap Subs.<br><span class="text-gray-600 font-medium">→ Wait for emails to buy.</span>
                             </div>
-                            <div class="bg-orange-50 border border-orange-300 p-2 rounded text-xs">
+                            <div class="bg-orange-50 border border-orange-300 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-orange-700">FIX ADS</span><br>
                                 High Cost, Low CTR.<br><span class="text-gray-600 font-medium">→ Renew ad creatives.</span>
                             </div>
-                            <div class="bg-red-50 border border-red-300 p-2 rounded text-xs">
+                            <div class="bg-red-50 border border-red-300 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-red-600">FIX PAGE</span><br>
                                 Good CTR, Low Opt-in.<br><span class="text-gray-600 font-medium">→ Check landing page.</span>
                             </div>
-                            <div class="bg-gray-100 border border-gray-400 p-2 rounded text-xs">
+                            <div class="bg-gray-100 border border-gray-400 p-2 rounded text-[11px] sm:text-xs leading-tight">
                                 <span class="font-bold text-gray-700">BAD LEADS</span><br>
                                 Good Funnel, No Sales.<br><span class="text-gray-600 font-medium">→ Kill or Exclude.</span>
                             </div>
@@ -191,198 +203,212 @@
                 </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Country</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('country', 'sortName')">Country / Region ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('country', 'spend')">Ad Spend ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'imp')">Imp. ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'clicks')">Clicks ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'ctr')">CTR % ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'subs')">Subs ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'optin')">Opt-in % ↕</th>
-                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('country', 'cps')">Cost/Sub ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'net')">Net Rev ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'revps')">Rev/Sub ↕</th>
-                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('country', 'roas')">ROAS ↕</th>
-                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
-                            <th class="p-3 text-center font-bold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="funnel-country-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-8 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Country</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortFunnelTable('country', 'sortName')">Country / Region ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('country', 'spend')">Ad Spend ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'imp')">Imp. ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'clicks')">Clicks ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'ctr')">CTR % ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'subs')">Subs ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'optin')">Opt-in % ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('country', 'cps')">Cost/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('country', 'net')">Net Rev ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('country', 'revps')">Rev/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('country', 'roas')">ROAS ↕</th>
+                                <th class="p-2 sm:p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
+                                <th class="p-2 sm:p-3 text-center font-bold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="funnel-country-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Region</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('region', 'sortName')">Region ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('region', 'spend')">Ad Spend ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'imp')">Imp. ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'clicks')">Clicks ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'ctr')">CTR % ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'subs')">Subs ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'optin')">Opt-in % ↕</th>
-                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('region', 'cps')">Cost/Sub ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'net')">Net Rev ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'revps')">Rev/Sub ↕</th>
-                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('region', 'roas')">ROAS ↕</th>
-                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
-                            <th class="p-3 text-center font-bold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="funnel-region-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-8 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Region</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortFunnelTable('region', 'sortName')">Region ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('region', 'spend')">Ad Spend ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'imp')">Imp. ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'clicks')">Clicks ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'ctr')">CTR % ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'subs')">Subs ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'optin')">Opt-in % ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('region', 'cps')">Cost/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('region', 'net')">Net Rev ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('region', 'revps')">Rev/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('region', 'roas')">ROAS ↕</th>
+                                <th class="p-2 sm:p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
+                                <th class="p-2 sm:p-3 text-center font-bold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="funnel-region-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Ad Set</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'sortName')">Ad Set ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'spend')">Ad Spend ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'imp')">Imp. ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'clicks')">Clicks ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'ctr')">CTR % ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'subs')">Subs ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'optin')">Opt-in % ↕</th>
-                            <th class="p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('adset', 'cps')">Cost/Sub ↕</th>
-                            <th class="p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'net')">Net Rev ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'revps')">Rev/Sub ↕</th>
-                            <th class="p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('adset', 'roas')">ROAS ↕</th>
-                            <th class="p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
-                            <th class="p-3 text-center font-bold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="funnel-adset-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Ad Set</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'sortName')">Ad Set ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortFunnelTable('adset', 'spend')">Ad Spend ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'imp')">Imp. ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'clicks')">Clicks ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'ctr')">CTR % ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'subs')">Subs ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'optin')">Opt-in % ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800 cursor-pointer" onclick="sortFunnelTable('adset', 'cps')">Cost/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right cursor-pointer" onclick="sortFunnelTable('adset', 'net')">Net Rev ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-700 cursor-pointer" onclick="sortFunnelTable('adset', 'revps')">Rev/Sub ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700 cursor-pointer" onclick="sortFunnelTable('adset', 'roas')">ROAS ↕</th>
+                                <th class="p-2 sm:p-3 text-center font-bold" title="Action from the previous matching period">Prev Action</th>
+                                <th class="p-2 sm:p-3 text-center font-bold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="funnel-adset-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div id="view-roas" class="hidden">
-            <div class="flex justify-between items-end mb-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Diminishing Returns (ROAS Scaling)</h2>
-                <div class="flex items-center gap-2 bg-white p-2 rounded shadow-sm border">
+                <div class="flex items-center gap-2 bg-white p-2 rounded shadow-sm border w-full sm:w-auto justify-between sm:justify-start">
                     <label class="text-sm font-bold text-gray-700">Grouping:</label>
-                    <select id="roas-timeframe" class="border rounded p-1 text-sm bg-gray-50" onchange="loadRoasData()">
+                    <select id="roas-timeframe" class="border rounded p-1 text-sm bg-gray-50 flex-1 sm:flex-none" onchange="loadRoasData()">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly (Mon-Sun)</option>
                     </select>
                 </div>
             </div>
 
-            <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
+            <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
                 *This chart strictly ignores chronological dates. It plots your periods ordered from <strong>Lowest Ad Spend</strong> (left) to <strong>Highest Ad Spend</strong> (right). Look for the point on the X-Axis where the purple ROAS line falls below 1.0x to find your maximum profitable budget.
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-6">
-                <canvas id="roasChart" height="100"></canvas>
+            <div class="bg-white p-3 sm:p-5 rounded-lg shadow-sm mb-6 w-full overflow-hidden">
+                <canvas id="roasChart"></canvas>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-10 overflow-x-auto">
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-200 bg-gray-50 text-sm text-gray-600">
-                            <th class="p-3">Period</th>
-                            <th class="p-3 text-right">Ad Spend (Ordered)</th>
-                            <th class="p-3 text-right">Net Revenue</th>
-                            <th class="p-3 text-right">Subscribers</th>
-                            <th class="p-3 text-right">Cost / Sub</th>
-                            <th class="p-3 text-right">ROAS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="roas-table-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[600px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200 bg-gray-50 text-xs sm:text-sm text-gray-600">
+                                <th class="p-2 sm:p-3">Period</th>
+                                <th class="p-2 sm:p-3 text-right">Ad Spend (Ordered)</th>
+                                <th class="p-2 sm:p-3 text-right">Net Revenue</th>
+                                <th class="p-2 sm:p-3 text-right">Subscribers</th>
+                                <th class="p-2 sm:p-3 text-right">Cost / Sub</th>
+                                <th class="p-2 sm:p-3 text-right">ROAS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roas-table-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div id="view-dow" class="hidden">
             <h2 class="text-xl font-bold text-gray-800 mb-2">Day of Week Performance Matrix</h2>
-            <div class="text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
+            <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
                 *Heatmap colors are calculated <strong>vertically</strong> (comparing all rows on the same day). This shows you which entity dominates on a given day of the week.<br>
                 *Note: Steam purchases are organic/global and cannot be natively attributed to a specific Meta Ad Set, so Revenue/ROAS will pool into "Unattributed" in the Ad Set table.
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Country</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortDowTable('country', -1)">Country ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 0)">Mon ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 1)">Tue ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 2)">Wed ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 3)">Thu ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 4)">Fri ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 5)">Sat ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 6)">Sun ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('country', 7)">Overall ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dow-country-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-8 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Country</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortDowTable('country', -1)">Country ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 0)">Mon ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 1)">Tue ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 2)">Wed ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 3)">Thu ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 4)">Fri ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 5)">Sat ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('country', 6)">Sun ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('country', 7)">Overall ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dow-country-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Region</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortDowTable('region', -1)">Region ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 0)">Mon ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 1)">Tue ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 2)">Wed ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 3)">Thu ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 4)">Fri ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 5)">Sat ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 6)">Sun ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('region', 7)">Overall ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dow-region-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-8 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Region</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortDowTable('region', -1)">Region ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 0)">Mon ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 1)">Tue ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 2)">Wed ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 3)">Thu ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 4)">Fri ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 5)">Sat ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('region', 6)">Sun ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('region', 7)">Overall ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dow-region-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="bg-white p-5 rounded-lg shadow-sm mb-8 overflow-x-auto">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">By Ad Set</h3>
-                <table class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b-2 border-gray-300 bg-gray-100 text-sm text-gray-700">
-                            <th class="p-3 font-bold cursor-pointer" onclick="sortDowTable('adset', -1)">Ad Set ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 0)">Mon ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 1)">Tue ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 2)">Wed ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 3)">Thu ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 4)">Fri ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 5)">Sat ↕</th>
-                            <th class="p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 6)">Sun ↕</th>
-                            <th class="p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('adset', 7)">Overall ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dow-adset-body" class="text-sm"></tbody>
-                </table>
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="p-4 sm:p-0"><h3 class="text-lg font-bold text-gray-800 mb-2">By Ad Set</h3></div>
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold cursor-pointer" onclick="sortDowTable('adset', -1)">Ad Set ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 0)">Mon ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 1)">Tue ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 2)">Wed ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 3)">Thu ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 4)">Fri ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 5)">Sat ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold cursor-pointer" onclick="sortDowTable('adset', 6)">Sun ↕</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-blue-800 cursor-pointer" onclick="sortDowTable('adset', 7)">Overall ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dow-adset-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div id="view-sync" class="hidden">
-            <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+            <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm mb-6">
                 <h2 class="text-lg font-bold mb-4">Manual ETL Triggers</h2>
-                <div class="flex gap-4 mb-6">
-                    <div>
+                <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div class="w-full sm:w-auto">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Fetch Data From:</label>
-                        <input type="date" id="since" class="border rounded p-2 text-sm">
+                        <input type="date" id="since" class="border rounded p-2 text-sm w-full">
                     </div>
-                    <div>
+                    <div class="w-full sm:w-auto">
                         <label class="block text-sm font-medium text-gray-600 mb-1">To:</label>
-                        <input type="date" id="until" class="border rounded p-2 text-sm">
+                        <input type="date" id="until" class="border rounded p-2 text-sm w-full">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL</button>
                     <button onclick="triggerUpdate('fetch-stripe')" class="bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Stripe</button>
                     <button onclick="triggerUpdate('fetch-meta')" class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Meta Ads</button>
@@ -399,14 +425,14 @@
 
     </div>
 
-    <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50">
+    <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 class="text-xl font-bold mb-2">Manage Regions</h3>
             <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code>. A country can be in multiple regions.</p>
             <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;Francophone = FR, BE, CH"></textarea>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeRegionModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button onclick="saveRegions()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
+            <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 w-full">
+                <button onclick="closeRegionModal()" class="w-full sm:w-auto px-4 py-2 text-gray-600 hover:bg-gray-100 rounded border sm:border-0">Cancel</button>
+                <button onclick="saveRegions()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
             </div>
         </div>
     </div>
@@ -498,15 +524,15 @@
             const container = document.getElementById('exclude-date-rows');
             const div = document.createElement('div');
             div.id = 'excl-' + id;
-            div.className = "flex items-center gap-2 mb-1";
+            div.className = "flex items-center gap-1.5 sm:gap-2 mb-1 w-full flex-wrap sm:flex-nowrap";
             div.setAttribute('data-exclude-row', 'true');
             div.innerHTML = `
-                <input type="checkbox" class="exclude-active cursor-pointer" title="Toggle active" ${active ? 'checked' : ''} onchange="saveExcludedDates()">
-                <input type="text" class="exclude-name border rounded p-1 text-xs w-28" placeholder="Name (e.g. Sale)" value="${name}" onchange="saveExcludedDates()" onkeyup="saveExcludedDates()">
-                <input type="date" class="exclude-start border rounded p-1 text-xs w-28" value="${start}" onchange="saveExcludedDates()">
-                <span class="text-gray-400 text-xs">to</span>
-                <input type="date" class="exclude-end border rounded p-1 text-xs w-28" value="${end}" onchange="saveExcludedDates()">
-                <button onclick="document.getElementById('excl-${id}').remove(); saveExcludedDates();" class="text-red-500 font-bold px-1.5 hover:bg-red-100 rounded" title="Delete Rule">×</button>
+                <input type="checkbox" class="exclude-active cursor-pointer shrink-0" title="Toggle active" ${active ? 'checked' : ''} onchange="saveExcludedDates()">
+                <input type="text" class="exclude-name border rounded p-1.5 sm:p-1 text-xs w-full sm:w-28 flex-1" placeholder="Name (e.g. Sale)" value="${name}" onchange="saveExcludedDates()" onkeyup="saveExcludedDates()">
+                <input type="date" class="exclude-start border rounded p-1.5 sm:p-1 text-xs w-[calc(50%-1.5rem)] sm:w-28" value="${start}" onchange="saveExcludedDates()">
+                <span class="text-gray-400 text-xs shrink-0">to</span>
+                <input type="date" class="exclude-end border rounded p-1.5 sm:p-1 text-xs w-[calc(50%-1.5rem)] sm:w-28" value="${end}" onchange="saveExcludedDates()">
+                <button onclick="document.getElementById('excl-${id}').remove(); saveExcludedDates();" class="text-red-500 font-bold px-2 py-1 sm:px-1.5 hover:bg-red-100 rounded shrink-0 border sm:border-0" title="Delete Rule">×</button>
             `;
             container.appendChild(div);
         }
@@ -748,7 +774,7 @@
                         { type: 'line', label: 'Cost / Sub (€)', data: sortedDates.map(d => dailyData[d].subs > 0 ? (dailyData[d].spend / dailyData[d].subs) : 0), borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.1)', fill: false, tension: 0.3, yAxisID: 'y1' }
                     ]
                 },
-                options: { responsive: true, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
             });
 
             globalDashboardState.totalSpend = totalSpend; globalDashboardState.totalNet = totalNet; globalDashboardState.totalSubs = totalSubs; globalDashboardState.totalImp = totalImp; globalDashboardState.totalClicks = totalClicks;
@@ -777,14 +803,14 @@
 
             tbody.innerHTML = countryAggData.map(c => `
                 <tr class="border-b transition hover:bg-gray-100">
-                    <td class="p-3 text-gray-800"><span class="font-medium">${c.countryName}</span> <span class="text-xs text-gray-400 ml-1">(${c.country})</span> ${c.region !== 'Other' ? `<span class="text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : ''}</td>
-                    <td class="p-3 text-right text-red-600">€${c.spend.toFixed(2)}</td>
-                    <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
-                    <td class="p-3 text-right text-blue-600 font-bold">${c.subs}</td>
-                    <td class="p-3 text-right text-gray-800 font-medium" style="background-color: ${c.subs > 0 ? getRankColor(c.cps, sCps, false) : 'transparent'}">€${c.cps.toFixed(2)}</td>
-                    <td class="p-3 text-right text-gray-800 font-bold" style="background-color: ${getRankColor(c.roas, sRoas, true)}">${c.roas.toFixed(2)}x</td>
-                    <td class="p-3 text-right text-gray-600 text-xs" style="background-color: ${c.imp > 0 ? getRankColor(c.cpm, sCpm, false) : 'transparent'}">€${c.cpm.toFixed(2)}</td>
-                    <td class="p-3 text-right text-gray-600 text-xs" style="background-color: ${c.clicks > 0 ? getRankColor(c.cpc, sCpc, false) : 'transparent'}">€${c.cpc.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-gray-800"><span class="font-medium">${c.countryName}</span> <span class="text-xs text-gray-400 ml-1">(${c.country})</span> ${c.region !== 'Other' ? `<span class="text-[10px] sm:text-xs text-blue-500 font-bold ml-1">[${c.region}]</span>` : ''}</td>
+                    <td class="p-2 sm:p-3 text-right text-red-600">€${c.spend.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600 font-bold">${c.subs}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-800 font-medium" style="background-color: ${c.subs > 0 ? getRankColor(c.cps, sCps, false) : 'transparent'}">€${c.cps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-800 font-bold" style="background-color: ${getRankColor(c.roas, sRoas, true)}">${c.roas.toFixed(2)}x</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600 text-xs" style="background-color: ${c.imp > 0 ? getRankColor(c.cpm, sCpm, false) : 'transparent'}">€${c.cpm.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600 text-xs" style="background-color: ${c.clicks > 0 ? getRankColor(c.cpc, sCpc, false) : 'transparent'}">€${c.cpc.toFixed(2)}</td>
                 </tr>
             `).join('');
         }
@@ -798,10 +824,8 @@
 
             const startD = new Date(startDate);
             const endD = new Date(endDate);
-            // Calculate duration of current selection
             const diffDays = Math.round((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
             
-            // Calculate previous period boundaries
             const prevEndD = new Date(startD);
             prevEndD.setDate(prevEndD.getDate() - 1);
             const prevStartD = new Date(prevEndD);
@@ -838,7 +862,7 @@
                 if (isCurrent) {
                     if (!aggC[cCode]) aggC[cCode] = { 
                         id: cCode,
-                        name: getCountryName(cCode) + ` <span class="text-xs text-gray-400">(${cCode})</span>` + (regionNames.length > 0 ? ` <span class="text-[10px] text-blue-500 font-bold ml-1">[${regionNames.join(', ')}]</span>` : ''), 
+                        name: getCountryName(cCode) + ` <span class="text-[10px] sm:text-xs text-gray-400">(${cCode})</span>` + (regionNames.length > 0 ? ` <span class="text-[9px] sm:text-[10px] text-blue-500 font-bold ml-1">[${regionNames.join(', ')}]</span>` : ''), 
                         sortName: getCountryName(cCode), spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
                     };
                     aggC[cCode][metric] += val;
@@ -964,19 +988,19 @@
                     const g = funnelData.global;
                     html += `
                         <tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
-                            <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
-                            <td class="p-3 text-right">€${g.spend.toFixed(2)}</td>
-                            <td class="p-3 text-right">${g.imp.toLocaleString()}</td>
-                            <td class="p-3 text-right">${g.clicks.toLocaleString()}</td>
-                            <td class="p-3 text-right text-blue-800">${g.ctr.toFixed(2)}%</td>
-                            <td class="p-3 text-right">${g.subs.toLocaleString()}</td>
-                            <td class="p-3 text-right text-blue-800">${g.optin.toFixed(2)}%</td>
-                            <td class="p-3 text-right">€${g.cps === Infinity ? '∞' : g.cps.toFixed(2)}</td>
-                            <td class="p-3 text-right">€${g.net.toFixed(2)}</td>
-                            <td class="p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
-                            <td class="p-3 text-right text-purple-800">${g.roas.toFixed(2)}x</td>
-                            <td class="p-3 text-center">-</td>
-                            <td class="p-3 text-center">-</td>
+                            <td class="p-2 sm:p-3 text-gray-800">GLOBAL AVERAGE</td>
+                            <td class="p-2 sm:p-3 text-right">€${g.spend.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right">${g.imp.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right">${g.clicks.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800">${g.ctr.toFixed(2)}%</td>
+                            <td class="p-2 sm:p-3 text-right">${g.subs.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800">${g.optin.toFixed(2)}%</td>
+                            <td class="p-2 sm:p-3 text-right">€${g.cps === Infinity ? '∞' : g.cps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right">€${g.net.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800">€${g.revps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-purple-800">${g.roas.toFixed(2)}x</td>
+                            <td class="p-2 sm:p-3 text-center">-</td>
+                            <td class="p-2 sm:p-3 text-center">-</td>
                         </tr>
                     `;
                 }
@@ -990,41 +1014,41 @@
                     
                     if (currentAction === 'SCALE') {
                         bgClass = 'bg-green-50 hover:bg-green-100';
-                        actionBadge = '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-[10px] font-bold shadow-sm">SCALE</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-green-200 text-green-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">SCALE</span>';
                     } else if (currentAction === 'REDUCE') {
                         bgClass = 'bg-blue-50 hover:bg-blue-100';
-                        actionBadge = '<span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-[10px] font-bold shadow-sm">REDUCE</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">REDUCE</span>';
                     } else if (currentAction === 'MONITOR') {
                         bgClass = 'bg-yellow-50 hover:bg-yellow-100';
-                        actionBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-[10px] font-bold shadow-sm">MONITOR</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">MONITOR</span>';
                     } else if (currentAction === 'FIX ADS') {
                         bgClass = 'bg-orange-50 hover:bg-orange-100';
-                        actionBadge = '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-[10px] font-bold shadow-sm">FIX ADS</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-orange-200 text-orange-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">FIX ADS</span>';
                     } else if (currentAction === 'FIX PAGE') {
                         bgClass = 'bg-red-50 hover:bg-red-100';
-                        actionBadge = '<span class="px-2 py-1 bg-red-200 text-red-800 rounded text-[10px] font-bold shadow-sm">FIX PAGE</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-red-200 text-red-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">FIX PAGE</span>';
                     } else if (currentAction === 'BAD LEADS') {
                         bgClass = 'bg-gray-100 hover:bg-gray-200';
-                        actionBadge = '<span class="px-2 py-1 bg-gray-300 text-gray-800 rounded text-[10px] font-bold shadow-sm">BAD LEADS</span>';
+                        actionBadge = '<span class="px-2 py-1 bg-gray-300 text-gray-800 rounded text-[9px] sm:text-[10px] font-bold shadow-sm">BAD LEADS</span>';
                     }
 
-                    const prevActionHtml = prevAction === '-' ? '-' : `<span class="text-gray-400 font-medium text-[10px] uppercase">${prevAction}</span>`;
+                    const prevActionHtml = prevAction === '-' ? '-' : `<span class="text-gray-400 font-medium text-[9px] sm:text-[10px] uppercase">${prevAction}</span>`;
 
                     return `
                         <tr class="border-b transition ${bgClass}">
-                            <td class="p-3 text-gray-800 font-medium truncate max-w-[200px]" title="${c.sortName}">${c.name}</td>
-                            <td class="p-3 text-right">€${c.spend.toFixed(2)}</td>
-                            <td class="p-3 text-right text-gray-600">${c.imp.toLocaleString()}</td>
-                            <td class="p-3 text-right text-gray-600">${c.clicks.toLocaleString()}</td>
-                            <td class="p-3 text-right text-blue-800 font-medium">${c.ctr.toFixed(2)}%</td>
-                            <td class="p-3 text-right text-gray-600">${c.subs.toLocaleString()}</td>
-                            <td class="p-3 text-right text-blue-800 font-medium">${c.optin.toFixed(2)}%</td>
-                            <td class="p-3 text-right text-gray-800 font-medium">${c.cps === Infinity ? '∞' : '€' + c.cps.toFixed(2)}</td>
-                            <td class="p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
-                            <td class="p-3 text-right text-blue-800 font-medium">€${c.revps.toFixed(2)}</td>
-                            <td class="p-3 text-right text-purple-700 font-bold">${c.roas.toFixed(2)}x</td>
-                            <td class="p-3 text-center">${prevActionHtml}</td>
-                            <td class="p-3 text-center">${actionBadge}</td>
+                            <td class="p-2 sm:p-3 text-gray-800 font-medium truncate max-w-[150px] sm:max-w-[200px]" title="${c.sortName}">${c.name}</td>
+                            <td class="p-2 sm:p-3 text-right">€${c.spend.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-gray-600">${c.imp.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right text-gray-600">${c.clicks.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">${c.ctr.toFixed(2)}%</td>
+                            <td class="p-2 sm:p-3 text-right text-gray-600">${c.subs.toLocaleString()}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">${c.optin.toFixed(2)}%</td>
+                            <td class="p-2 sm:p-3 text-right text-gray-800 font-medium">${c.cps === Infinity ? '∞' : '€' + c.cps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">€${c.revps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-purple-700 font-bold">${c.roas.toFixed(2)}x</td>
+                            <td class="p-2 sm:p-3 text-center">${prevActionHtml}</td>
+                            <td class="p-2 sm:p-3 text-center">${actionBadge}</td>
                         </tr>
                     `;
                 }).join('');
@@ -1081,12 +1105,12 @@
 
             document.getElementById('roas-table-body').innerHTML = roasArr.map(p => `
                 <tr class="border-b transition hover:bg-gray-100">
-                    <td class="p-3 font-medium text-gray-800">${timeframe === 'weekly' ? 'Week of ' + p.period : p.period}</td>
-                    <td class="p-3 text-right text-red-600 font-bold">€${p.spend.toFixed(2)}</td>
-                    <td class="p-3 text-right text-green-600">€${p.net.toFixed(2)}</td>
-                    <td class="p-3 text-right text-blue-600">${p.subs}</td>
-                    <td class="p-3 text-right text-gray-800">€${p.cps.toFixed(2)}</td>
-                    <td class="p-3 text-right text-gray-800 font-bold">${p.roas.toFixed(2)}x</td>
+                    <td class="p-2 sm:p-3 font-medium text-gray-800">${timeframe === 'weekly' ? 'Week of ' + p.period : p.period}</td>
+                    <td class="p-2 sm:p-3 text-right text-red-600 font-bold">€${p.spend.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-green-600">€${p.net.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600">${p.subs}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-800">€${p.cps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-800 font-bold">${p.roas.toFixed(2)}x</td>
                 </tr>
             `).join('');
 
@@ -1100,7 +1124,7 @@
                         { type: 'line', label: 'ROAS (x)', data: roasArr.map(p => p.roas), borderColor: '#a855f7', backgroundColor: '#a855f7', fill: false, tension: 0.1, yAxisID: 'y1' }
                     ]
                 },
-                options: { responsive: true, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
             });
         }
 
@@ -1222,17 +1246,17 @@
                     const g = dowData.global;
                     const gSorted = g.days.map(d => d.roas).filter(v => v > 0).sort((x,y) => x - y);
                     html += `<tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
-                        <td class="p-3 text-gray-800">GLOBAL AVERAGE</td>
-                        ${g.days.map(d => `<td class="p-3 text-right" style="background-color: ${getRankColor(d.roas, gSorted, true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] font-normal text-gray-500">€${d.spend.toFixed(0)}</span></td>`).join('')}
-                        <td class="p-3 text-right text-blue-800">${g.total.roas.toFixed(2)}x<br><span class="text-[10px] font-normal text-gray-500">€${g.total.spend.toFixed(0)}</span></td>
+                        <td class="p-2 sm:p-3 text-gray-800">GLOBAL AVERAGE</td>
+                        ${g.days.map(d => `<td class="p-2 sm:p-3 text-right" style="background-color: ${getRankColor(d.roas, gSorted, true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] font-normal text-gray-500">€${d.spend.toFixed(0)}</span></td>`).join('')}
+                        <td class="p-2 sm:p-3 text-right text-blue-800">${g.total.roas.toFixed(2)}x<br><span class="text-[10px] font-normal text-gray-500">€${g.total.spend.toFixed(0)}</span></td>
                     </tr>`;
                 }
 
                 html += arr.map(row => `
                     <tr class="border-b transition hover:bg-gray-50">
-                        <td class="p-3 text-gray-800 font-medium truncate max-w-[200px]" title="${row.name}">${row.name}</td>
-                        ${row.days.map((d, i) => `<td class="p-3 text-right font-medium" style="background-color: ${getRankColor(d.roas, sortedCols[i], true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] text-gray-400 font-normal">€${d.spend.toFixed(0)}</span></td>`).join('')}
-                        <td class="p-3 text-right font-bold text-blue-800" style="background-color: ${getRankColor(row.total.roas, sortedTotal, true)}">${row.total.roas > 0 ? row.total.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] font-normal text-gray-500">€${row.total.spend.toFixed(0)}</span></td>
+                        <td class="p-2 sm:p-3 text-gray-800 font-medium truncate max-w-[150px] sm:max-w-[200px]" title="${row.name}">${row.name}</td>
+                        ${row.days.map((d, i) => `<td class="p-2 sm:p-3 text-right font-medium" style="background-color: ${getRankColor(d.roas, sortedCols[i], true)}">${d.roas > 0 ? d.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] text-gray-400 font-normal">€${d.spend.toFixed(0)}</span></td>`).join('')}
+                        <td class="p-2 sm:p-3 text-right font-bold text-blue-800" style="background-color: ${getRankColor(row.total.roas, sortedTotal, true)}">${row.total.roas > 0 ? row.total.roas.toFixed(2) + 'x' : '-'}<br><span class="text-[10px] font-normal text-gray-500">€${row.total.spend.toFixed(0)}</span></td>
                     </tr>
                 `).join('');
 
