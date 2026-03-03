@@ -398,7 +398,7 @@
         <div id="view-sync" class="hidden">
             <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm mb-6">
                 <h2 class="text-lg font-bold mb-4">Manual ETL Triggers</h2>
-                <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
                     <div class="w-full sm:w-auto">
                         <label class="block text-sm font-medium text-gray-600 mb-1">Fetch Data From:</label>
                         <input type="date" id="since" class="border rounded p-2 text-sm w-full">
@@ -408,6 +408,15 @@
                         <input type="date" id="until" class="border rounded p-2 text-sm w-full">
                     </div>
                 </div>
+                
+                <div class="flex items-start sm:items-center mb-6 bg-blue-50 p-3 rounded border border-blue-100">
+                    <input type="checkbox" id="force-refresh" class="mt-1 sm:mt-0 mr-3 w-5 h-5 text-blue-600 cursor-pointer shrink-0">
+                    <label for="force-refresh" class="text-sm text-gray-700 cursor-pointer">
+                        <span class="font-bold">Force Refresh</span><br>
+                        <span class="text-xs text-gray-500">Deletes existing data in the Google Sheet for this date range before importing fresh data.</span>
+                    </label>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL</button>
                     <button onclick="triggerUpdate('fetch-stripe')" class="bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Stripe</button>
@@ -1286,7 +1295,7 @@
             });
         }
 
-window.onload = async () => {
+        window.onload = async () => {
             // --- SECURE PIN CHECK ---
             let pin = localStorage.getItem('wl-pin');
             if (!pin) pin = prompt("Enter Dashboard PIN:");
@@ -1296,7 +1305,6 @@ window.onload = async () => {
                 return;
             }
 
-            // Hide the dashboard UI while we verify the PIN with Netlify
             document.body.style.opacity = '0.2';
             
             try {
@@ -1307,7 +1315,6 @@ window.onload = async () => {
                 });
 
                 if (res.ok) {
-                    // PIN is correct! Save it and boot the app.
                     localStorage.setItem('wl-pin', pin);
                     document.body.style.opacity = '1';
                     
@@ -1321,7 +1328,6 @@ window.onload = async () => {
                     loadOptimizerTargets();
                     refreshAllViews();
                 } else {
-                    // PIN is wrong
                     localStorage.removeItem('wl-pin');
                     document.body.style.opacity = '1';
                     document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif; color:red;'>Incorrect PIN. Refresh the page to try again.</h1>";
@@ -1343,9 +1349,18 @@ window.onload = async () => {
         async function triggerUpdate(endpoint) {
             const btns = document.querySelectorAll('#view-sync button');
             btns.forEach(b => b.disabled = true);
+            const forceRefresh = document.getElementById('force-refresh').checked;
             logToConsole(`>>> Starting ${endpoint.toUpperCase()}...`, 'warn');
             try {
-                const res = await fetch(`/.netlify/functions/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ since: document.getElementById('since').value || undefined, until: document.getElementById('until').value || undefined }) });
+                const res = await fetch(`/.netlify/functions/${endpoint}`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        since: document.getElementById('since').value || undefined, 
+                        until: document.getElementById('until').value || undefined,
+                        forceRefresh
+                    }) 
+                });
                 const json = await res.json();
                 if (res.ok) {
                     if (json.logs) json.logs.forEach(l => logToConsole(l.msg, l.type));
