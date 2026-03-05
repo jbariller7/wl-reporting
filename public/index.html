@@ -1509,7 +1509,7 @@ let sortedDates = Array.from(allDates).sort();
                 };
             };
 
-            // OUTLIER REMOVAL LOGIC (Removes any days > 3 StdDevs above the mean)
+   // OUTLIER REMOVAL LOGIC (Removes any days > 3 StdDevs above the mean, AND drops 0s)
             const removeOutliers = document.getElementById('evo-remove-outliers')?.checked;
             if (removeOutliers) {
                 const roasArr = sortedDates.map(d => getMetrics(dailySelected, d).roas).filter(v => v > 0);
@@ -1522,9 +1522,15 @@ let sortedDates = Array.from(allDates).sort();
 
                 sortedDates = sortedDates.filter(d => {
                     const m = getMetrics(dailySelected, d);
+                    
+                    // 1. Drop days with exactly 0 for cost metrics (missing data or infinite cost)
+                    if (m.cps === 0 || m.cpc === 0 || m.cpm === 0) return false;
+
+                    // 2. Drop high-end extreme spikes
                     const isRoasOutlier = roasStats.std > 0 && m.roas > roasStats.mean + (3 * roasStats.std);
                     const isCpsOutlier = cpsStats.std > 0 && m.cps > cpsStats.mean + (3 * cpsStats.std);
                     const isCpcOutlier = cpcStats.std > 0 && m.cpc > cpcStats.mean + (3 * cpcStats.std);
+                    
                     return !(isRoasOutlier || isCpsOutlier || isCpcOutlier);
                 });
             }
