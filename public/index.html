@@ -426,12 +426,16 @@
 <div id="view-evolution" class="hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Daily Evolution</h2>
+                <div class="flex items-center bg-white p-2 rounded shadow-sm border border-gray-300">
+                    <input type="checkbox" id="evo-remove-outliers" class="w-4 h-4 text-blue-600 cursor-pointer" onchange="refreshAllViews()">
+                    <label for="evo-remove-outliers" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">Remove Outliers (Flatten Spikes)</label>
+                </div>
             </div>
             <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
                 *Compare your selected location's daily performance against the <strong>Global Average (dotted grey lines)</strong>. Ad Spend does not show the global average to prevent breaking the chart scale.
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
                     <canvas id="evoSpendChart" height="250"></canvas>
                 </div>
@@ -443,6 +447,26 @@
                 </div>
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
                     <canvas id="evoCpmCpcChart" height="250"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-lg shadow-sm border mb-10 w-full">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Custom Correlation Explorer <span class="text-xs text-gray-500 font-normal">(0-100 Normalized Index)</span></h3>
+                <div class="text-xs text-gray-600 mb-4">Values are scaled to 100% of their individual maximum to easily spot correlations between widely different numbers. *Hover over data points to see the real raw value.*</div>
+                
+                <div class="flex flex-wrap gap-2 mb-4" id="custom-chart-controls">
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="spend" class="mr-1.5 custom-metric-cb" checked onchange="renderCustomChart()"> Ad Spend</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="roas" class="mr-1.5 custom-metric-cb" checked onchange="renderCustomChart()"> ROAS</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="inv_roas" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Inverted ROAS</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cps" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Sub</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cpc" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> CPC</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cpm" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> CPM</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="net" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Rev</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="subs" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Subscribers</label>
+                </div>
+                
+                <div class="w-full overflow-hidden">
+                    <canvas id="evoCustomChart" height="300"></canvas>
                 </div>
             </div>
         </div>
@@ -1388,11 +1412,22 @@
 
             renderDowTables();
         }
-       // --- DAILY EVOLUTION TAB LOGIC ---
+// --- DAILY EVOLUTION TAB LOGIC ---
         let evoSpendChart = null;
         let evoRoasChart = null;
         let evoCpsChart = null;
         let evoCpmCpcChart = null;
+        let evoCustomChart = null;
+        
+        let customChartDataCache = {}; 
+        let customChartDates = [];     
+
+        function getZScoreStats(arr) {
+            if (!arr.length) return { mean: 0, std: 0 };
+            const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+            const variance = arr.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / arr.length;
+            return { mean, std: Math.sqrt(variance) };
+        }
 
         function loadEvolutionData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
@@ -1457,19 +1492,42 @@
                 }
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-
-            const sortedDates = Array.from(allDates).sort();
+let sortedDates = Array.from(allDates).sort();
 
             const getMetrics = (dataObj, date) => {
                 const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
+                const roas = day.spend > 0 ? day.net / day.spend : 0;
                 return {
                     spend: day.spend,
-                    roas: day.spend > 0 ? day.net / day.spend : 0,
+                    net: day.net,
+                    subs: day.subs,
+                    roas: roas,
+                    inv_roas: roas > 0 ? 1 / roas : 0,
                     cps: day.subs > 0 ? day.spend / day.subs : 0,
                     cpm: day.imp > 0 ? (day.spend / day.imp) * 1000 : 0,
                     cpc: day.clicks > 0 ? day.spend / day.clicks : 0
                 };
             };
+
+            // OUTLIER REMOVAL LOGIC (Removes any days > 3 StdDevs above the mean)
+            const removeOutliers = document.getElementById('evo-remove-outliers')?.checked;
+            if (removeOutliers) {
+                const roasArr = sortedDates.map(d => getMetrics(dailySelected, d).roas).filter(v => v > 0);
+                const cpsArr = sortedDates.map(d => getMetrics(dailySelected, d).cps).filter(v => v > 0);
+                const cpcArr = sortedDates.map(d => getMetrics(dailySelected, d).cpc).filter(v => v > 0);
+                
+                const roasStats = getZScoreStats(roasArr);
+                const cpsStats = getZScoreStats(cpsArr);
+                const cpcStats = getZScoreStats(cpcArr);
+
+                sortedDates = sortedDates.filter(d => {
+                    const m = getMetrics(dailySelected, d);
+                    const isRoasOutlier = roasStats.std > 0 && m.roas > roasStats.mean + (3 * roasStats.std);
+                    const isCpsOutlier = cpsStats.std > 0 && m.cps > cpsStats.mean + (3 * cpsStats.std);
+                    const isCpcOutlier = cpcStats.std > 0 && m.cpc > cpcStats.mean + (3 * cpcStats.std);
+                    return !(isRoasOutlier || isCpsOutlier || isCpcOutlier);
+                });
+            }
 
             const mapData = (metricKey, isGlobal) => sortedDates.map(d => getMetrics(isGlobal ? dailyGlobal : dailySelected, d)[metricKey]);
 
@@ -1479,13 +1537,26 @@
             };
 
             const locName = filterSelection === 'ALL' ? 'All Locations' : filterSelection.replace('REGION:', '');
+            customChartDates = sortedDates;
 
-            // Chart 1: Ad Spend (No global reference)
+            // Cache data for the Custom Chart
+            customChartDataCache = {
+                spend: mapData('spend', false),
+                roas: mapData('roas', false),
+                inv_roas: mapData('inv_roas', false),
+                cps: mapData('cps', false),
+                cpc: mapData('cpc', false),
+                cpm: mapData('cpm', false),
+                net: mapData('net', false),
+                subs: mapData('subs', false)
+            };
+
+            // Chart 1: Ad Spend
             evoSpendChart = buildChart('evoSpendChart', evoSpendChart, {
                 type: 'bar',
                 data: {
                     labels: sortedDates,
-                    datasets: [{ label: `Ad Spend (€) - ${locName}`, data: mapData('spend', false), backgroundColor: 'rgba(248, 113, 113, 0.8)' }]
+                    datasets: [{ label: `Ad Spend (€) - ${locName}`, data: customChartDataCache.spend, backgroundColor: 'rgba(248, 113, 113, 0.8)' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Ad Spend (€)' } } }
             });
@@ -1496,7 +1567,7 @@
                 data: {
                     labels: sortedDates,
                     datasets: [
-                        { label: `ROAS (x) - ${locName}`, data: mapData('roas', false), borderColor: '#a855f7', backgroundColor: '#a855f7', tension: 0.2 },
+                        { label: `ROAS (x) - ${locName}`, data: customChartDataCache.roas, borderColor: '#a855f7', backgroundColor: '#a855f7', tension: 0.2 },
                         { label: 'Global Avg', data: mapData('roas', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
                     ]
                 },
@@ -1509,7 +1580,7 @@
                 data: {
                     labels: sortedDates,
                     datasets: [
-                        { label: `Cost/Sub (€) - ${locName}`, data: mapData('cps', false), borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.2 },
+                        { label: `Cost/Sub (€) - ${locName}`, data: customChartDataCache.cps, borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.2 },
                         { label: 'Global Avg', data: mapData('cps', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
                     ]
                 },
@@ -1522,9 +1593,9 @@
                 data: {
                     labels: sortedDates,
                     datasets: [
-                        { label: `CPM - ${locName}`, data: mapData('cpm', false), borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.2 },
+                        { label: `CPM - ${locName}`, data: customChartDataCache.cpm, borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.2 },
                         { label: 'CPM Global', data: mapData('cpm', true), borderColor: '#9ca3af', borderDash: [5, 5], pointRadius: 0, yAxisID: 'y', tension: 0.2 },
-                        { label: `CPC - ${locName}`, data: mapData('cpc', false), borderColor: '#10b981', backgroundColor: '#10b981', yAxisID: 'y1', tension: 0.2 },
+                        { label: `CPC - ${locName}`, data: customChartDataCache.cpc, borderColor: '#10b981', backgroundColor: '#10b981', yAxisID: 'y1', tension: 0.2 },
                         { label: 'CPC Global', data: mapData('cpc', true), borderColor: '#d1d5db', borderDash: [5, 5], pointRadius: 0, yAxisID: 'y1', tension: 0.2 }
                     ]
                 },
@@ -1537,7 +1608,87 @@
                     } 
                 }
             });
+
+            renderCustomChart();
         }
+
+        function renderCustomChart() {
+            const checkboxes = document.querySelectorAll('.custom-metric-cb');
+            const selectedMetrics = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            
+            const labelsMap = {
+                spend: 'Ad Spend', roas: 'ROAS', inv_roas: 'Inverted ROAS', 
+                cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', subs: 'Subscribers'
+            };
+            const colorsMap = {
+                spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
+                cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', subs: '#0ea5e9'
+            };
+
+            const datasets = selectedMetrics.map(key => {
+                const rawData = customChartDataCache[key] || [];
+                const max = Math.max(...rawData, 0.0001); // Prevent divide by zero
+                const normalizedData = rawData.map(v => (v / max) * 100); // Scale to 0-100
+                
+                return {
+                    label: labelsMap[key],
+                    data: normalizedData,
+                    borderColor: colorsMap[key],
+                    backgroundColor: colorsMap[key],
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                };
+            });
+
+            if (evoCustomChart) evoCustomChart.destroy();
+            
+            evoCustomChart = new Chart(document.getElementById('evoCustomChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: customChartDates,
+                    datasets: datasets
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: { 
+                        title: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const key = selectedMetrics[context.datasetIndex];
+                                    const rawVal = customChartDataCache[key][context.dataIndex];
+                                    
+                                    // Format the tooltip string cleanly
+                                    let formattedVal = rawVal.toFixed(2);
+                                    if (key === 'subs') formattedVal = Math.round(rawVal);
+                                    if (key === 'roas' || key === 'inv_roas') formattedVal += 'x';
+                                    else if (key !== 'subs') formattedVal = '€' + formattedVal;
+
+                                    return `${context.dataset.label}: ${formattedVal} (Index: ${context.parsed.y.toFixed(0)}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { 
+                        y: { 
+                            type: 'linear', 
+                            min: 0, 
+                            max: 100, 
+                            title: { display: true, text: '% of Max Value' },
+                            ticks: { callback: function(value) { return value + '%'; } }
+                        } 
+                    } 
+                }
+            });
+        }
+
         function sortDowTable(type, colIdx) {
             if (dowSort[type].col === colIdx) dowSort[type].desc = !dowSort[type].desc;
             else { dowSort[type].col = colIdx; dowSort[type].desc = true; }
