@@ -31,7 +31,8 @@
             <div class="flex flex-col md:flex-row justify-between items-center py-3 sm:py-4 gap-3 md:gap-0">
                 <div class="text-xl font-bold text-gray-800 text-center md:text-left">WonderLang Reporting</div>
                 <div class="flex space-x-2 sm:space-x-6 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-hide justify-start md:justify-end text-sm sm:text-base whitespace-nowrap px-1">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2 shrink-0">Dashboard</button>
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2 shrink-0">Main</button>
+                    <button onclick="switchTab('evolution')" id="tab-evolution" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Daily Evolution</button>
                     <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Funnel Health</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">ROAS Scaling</button>
                     <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
@@ -422,7 +423,29 @@
                 </div>
             </div>
         </div>
+<div id="view-evolution" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
+                <h2 class="text-xl font-bold text-gray-800">Daily Evolution</h2>
+            </div>
+            <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
+                *Compare your selected location's daily performance against the <strong>Global Average (dotted grey lines)</strong>. Ad Spend does not show the global average to prevent breaking the chart scale.
+            </div>
 
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
+                    <canvas id="evoSpendChart" height="250"></canvas>
+                </div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
+                    <canvas id="evoRoasChart" height="250"></canvas>
+                </div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
+                    <canvas id="evoCpsChart" height="250"></canvas>
+                </div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border w-full overflow-hidden">
+                    <canvas id="evoCpmCpcChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
         <div id="view-sync" class="hidden">
             <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm mb-6">
                 <h2 class="text-lg font-bold mb-4">Manual ETL Triggers</h2>
@@ -654,7 +677,7 @@
 
         // --- UI Tabs ---
         function switchTab(tab) {
-            ['dashboard', 'roas', 'dow', 'funnel', 'sync'].forEach(t => {
+            ['dashboard', 'roas', 'dow', 'funnel', 'sync', 'evolution'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
                 if(btn) {
@@ -695,7 +718,7 @@
             loadFunnelData(raw);
             loadRoasData(raw);
             loadDowData(raw);
-
+            loadEvolutionData(raw);
             btn.innerText = originalText;
             btn.disabled = false;
         }
@@ -1365,7 +1388,156 @@
 
             renderDowTables();
         }
+       // --- DAILY EVOLUTION TAB LOGIC ---
+        let evoSpendChart = null;
+        let evoRoasChart = null;
+        let evoCpsChart = null;
+        let evoCpmCpcChart = null;
 
+        function loadEvolutionData(raw) {
+            const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
+
+            const dailySelected = {};
+            const dailyGlobal = {};
+            const allDates = new Set();
+
+            const initDay = (obj, d) => {
+                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
+            };
+
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+                
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                allDates.add(d);
+                
+                // 1. Always add to Global (Unfiltered baseline)
+                initDay(dailyGlobal, d);
+                dailyGlobal[d][metric] += val;
+
+                // 2. Check if it matches user's active filter
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (isFilteredIn) {
+                    initDay(dailySelected, d);
+                    dailySelected[d][metric] += val;
+                }
+            };
+
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) {
+                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                }
+            });
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    let stripeNetEur = 0;
+                    try {
+                        const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
+                        const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
+                        if (bt && bt.net) stripeNetEur = bt.net / 100;
+                    } catch (e) {}
+                    if (!stripeNetEur) {
+                        const curr = (r.currency || 'eur').toLowerCase();
+                        const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                        stripeNetEur = toEur(amt, curr) * 0.95; 
+                    }
+                    addMetric(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            const sortedDates = Array.from(allDates).sort();
+
+            const getMetrics = (dataObj, date) => {
+                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
+                return {
+                    spend: day.spend,
+                    roas: day.spend > 0 ? day.net / day.spend : 0,
+                    cps: day.subs > 0 ? day.spend / day.subs : 0,
+                    cpm: day.imp > 0 ? (day.spend / day.imp) * 1000 : 0,
+                    cpc: day.clicks > 0 ? day.spend / day.clicks : 0
+                };
+            };
+
+            const mapData = (metricKey, isGlobal) => sortedDates.map(d => getMetrics(isGlobal ? dailyGlobal : dailySelected, d)[metricKey]);
+
+            const buildChart = (ctxId, chartInstance, config) => {
+                if (chartInstance) chartInstance.destroy();
+                return new Chart(document.getElementById(ctxId).getContext('2d'), config);
+            };
+
+            const locName = filterSelection === 'ALL' ? 'All Locations' : filterSelection.replace('REGION:', '');
+
+            // Chart 1: Ad Spend (No global reference)
+            evoSpendChart = buildChart('evoSpendChart', evoSpendChart, {
+                type: 'bar',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{ label: `Ad Spend (€) - ${locName}`, data: mapData('spend', false), backgroundColor: 'rgba(248, 113, 113, 0.8)' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Ad Spend (€)' } } }
+            });
+
+            // Chart 2: ROAS
+            evoRoasChart = buildChart('evoRoasChart', evoRoasChart, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [
+                        { label: `ROAS (x) - ${locName}`, data: mapData('roas', false), borderColor: '#a855f7', backgroundColor: '#a855f7', tension: 0.2 },
+                        { label: 'Global Avg', data: mapData('roas', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Return on Ad Spend (ROAS)' } } }
+            });
+
+            // Chart 3: Cost Per Sub
+            evoCpsChart = buildChart('evoCpsChart', evoCpsChart, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [
+                        { label: `Cost/Sub (€) - ${locName}`, data: mapData('cps', false), borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.2 },
+                        { label: 'Global Avg', data: mapData('cps', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Cost per Subscriber (€)' } } }
+            });
+
+            // Chart 4: CPM & CPC (Dual Axis)
+            evoCpmCpcChart = buildChart('evoCpmCpcChart', evoCpmCpcChart, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [
+                        { label: `CPM - ${locName}`, data: mapData('cpm', false), borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.2 },
+                        { label: 'CPM Global', data: mapData('cpm', true), borderColor: '#9ca3af', borderDash: [5, 5], pointRadius: 0, yAxisID: 'y', tension: 0.2 },
+                        { label: `CPC - ${locName}`, data: mapData('cpc', false), borderColor: '#10b981', backgroundColor: '#10b981', yAxisID: 'y1', tension: 0.2 },
+                        { label: 'CPC Global', data: mapData('cpc', true), borderColor: '#d1d5db', borderDash: [5, 5], pointRadius: 0, yAxisID: 'y1', tension: 0.2 }
+                    ]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { title: { display: true, text: 'CPM & CPC (€)' } },
+                    scales: { 
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'CPM (€)' } }, 
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'CPC (€)' }, grid: { drawOnChartArea: false } } 
+                    } 
+                }
+            });
+        }
         function sortDowTable(type, colIdx) {
             if (dowSort[type].col === colIdx) dowSort[type].desc = !dowSort[type].desc;
             else { dowSort[type].col = colIdx; dowSort[type].desc = true; }
