@@ -1632,11 +1632,12 @@ function renderCustomChart() {
                 spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
                 cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9'
             };
-
-            const datasets = selectedMetrics.map(key => {
+const datasets = selectedMetrics.map(key => {
                 const rawData = customChartDataCache[key] || [];
-                const max = Math.max(...rawData, 0.0001); // Prevent divide by zero
-                const normalizedData = rawData.map(v => (v / max) * 100); // Scale to 0-100
+                
+                // FIX: Map absolute values so negative-only profits don't break the math!
+                const max = Math.max(...rawData.map(Math.abs), 0.0001); 
+                const normalizedData = rawData.map(v => (v / max) * 100); 
                 
                 return {
                     label: labelsMap[key],
