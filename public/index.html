@@ -498,7 +498,7 @@
         // --- Core Helpers ---
         const TAX_RATE = 0.125;
         const STEAM_CUT = 0.30;
-        const RATES = { 'usd': 0.92, 'eur': 1.0, 'gbp': 1.17, 'jpy': 0.0061, 'krw': 0.00069, 'aud': 0.60, 'cad': 0.68, 'chf': 1.06, 'cny': 0.13, 'brl': 0.18, 'mxn': 0.054, 'inr': 0.011 };
+        const RATES = { 'usd': 0.86, 'eur': 1.0, 'gbp': 1.17, 'jpy': 0.0061, 'krw': 0.00069, 'aud': 0.60, 'cad': 0.68, 'chf': 1.06, 'cny': 0.13, 'brl': 0.18, 'mxn': 0.054, 'inr': 0.011 };
         function toEur(amount, curr) { return amount * (RATES[(curr || 'eur').toLowerCase()] || 1); }
 
         const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
