@@ -1501,6 +1501,7 @@ let sortedDates = Array.from(allDates).sort();
                 return {
                     spend: day.spend,
                     net: day.net,
+                    profit: day.net - day.spend,
                     subs: day.subs,
                     roas: roas,
                     inv_roas: roas > 0 ? 1 / roas : 0,
@@ -1555,6 +1556,7 @@ let sortedDates = Array.from(allDates).sort();
                 cpc: mapData('cpc', false),
                 cpm: mapData('cpm', false),
                 net: mapData('net', false),
+                profit: mapData('profit', false),
                 subs: mapData('subs', false)
             };
 
@@ -1618,18 +1620,17 @@ let sortedDates = Array.from(allDates).sort();
 
             renderCustomChart();
         }
-
-        function renderCustomChart() {
+function renderCustomChart() {
             const checkboxes = document.querySelectorAll('.custom-metric-cb');
             const selectedMetrics = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
             
             const labelsMap = {
                 spend: 'Ad Spend', roas: 'ROAS', inv_roas: 'Inverted ROAS', 
-                cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', subs: 'Subscribers'
+                cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', profit: 'Net Profit', subs: 'Subscribers'
             };
             const colorsMap = {
                 spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
-                cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', subs: '#0ea5e9'
+                cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9'
             };
 
             const datasets = selectedMetrics.map(key => {
@@ -1686,7 +1687,6 @@ let sortedDates = Array.from(allDates).sort();
                     scales: { 
                         y: { 
                             type: 'linear', 
-                            min: 0, 
                             max: 100, 
                             title: { display: true, text: '% of Max Value' },
                             ticks: { callback: function(value) { return value + '%'; } }
