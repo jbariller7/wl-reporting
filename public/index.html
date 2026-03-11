@@ -33,6 +33,7 @@
                 <div class="flex space-x-2 sm:space-x-6 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-hide justify-start md:justify-end text-sm sm:text-base whitespace-nowrap px-1">
                     <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2 shrink-0">Main</button>
                     <button onclick="switchTab('evolution')" id="tab-evolution" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Daily Evolution</button>
+                    <button onclick="switchTab('diagnosis')" id="tab-diagnosis" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">AI Diagnosis</button>
                     <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Funnel Health</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">ROAS Scaling</button>
                     <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
@@ -423,7 +424,7 @@
                 </div>
             </div>
         </div>
-<div id="view-evolution" class="hidden">
+        <div id="view-evolution" class="hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Daily Evolution</h2>
                 <div class="flex items-center bg-white p-2 rounded shadow-sm border border-gray-300">
@@ -460,7 +461,7 @@
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="inv_roas" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Inverted ROAS</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cps" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Sub</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cpc" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> CPC</label>
-<label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cpm" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> CPM</label>
+                <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="cpm" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> CPM</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="net" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Rev</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="profit" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Profit</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="subs" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Subscribers</label>
@@ -468,6 +469,40 @@
                 
                 <div class="w-full overflow-hidden">
                     <canvas id="evoCustomChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div id="view-diagnosis" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
+                <h2 class="text-xl font-bold text-gray-800">Daily Funnel Diagnosis (For AI)</h2>
+                <button onclick="copyDiagnosisForGemini()" id="btn-copy-diagnosis" class="bg-indigo-600 text-white px-4 py-1.5 rounded shadow-sm hover:bg-indigo-700 transition text-sm font-bold w-full sm:w-auto">🤖 Copy Daily Data for Gemini</button>
+            </div>
+            <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
+                *This breaks down your entire mathematical funnel day-by-day. Click the purple button to copy this data, then paste it back to the AI so it can diagnose exactly where the leak is happening.
+            </div>
+
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                        <thead>
+                            <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                                <th class="p-2 sm:p-3 font-bold">Date</th>
+                                <th class="p-2 sm:p-3 text-right">Spend</th>
+                                <th class="p-2 sm:p-3 text-right">Imp.</th>
+                                <th class="p-2 sm:p-3 text-right">CPM</th>
+                                <th class="p-2 sm:p-3 text-right">Clicks</th>
+                                <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">CTR %</th>
+                                <th class="p-2 sm:p-3 text-right">CPC</th>
+                                <th class="p-2 sm:p-3 text-right">Subs</th>
+                                <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Opt-in %</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub</th>
+                                <th class="p-2 sm:p-3 text-right">Net Rev</th>
+                                <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="diagnosis-table-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -702,7 +737,7 @@
 
         // --- UI Tabs ---
         function switchTab(tab) {
-            ['dashboard', 'roas', 'dow', 'funnel', 'sync', 'evolution'].forEach(t => {
+            ['dashboard', 'roas', 'dow', 'funnel', 'sync', 'evolution', 'diagnosis'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
                 if(btn) {
@@ -744,6 +779,7 @@
             loadRoasData(raw);
             loadDowData(raw);
             loadEvolutionData(raw);
+            loadDiagnosisData(raw);
             btn.innerText = originalText;
             btn.disabled = false;
         }
@@ -1817,7 +1853,113 @@ const datasets = selectedMetrics.map(key => {
                 document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif;'>Error connecting to auth server.</h1>";
             }
         };
+        // --- AI DIAGNOSIS TAB LOGIC ---
+        let diagnosisDailyData = [];
 
+        function loadDiagnosisData(raw) {
+            const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
+            const dailyAgg = {};
+
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                let isFilteredIn = false;
+                if (filterSelection === 'ALL') isFilteredIn = true;
+                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
+                else isFilteredIn = (cCode === filterSelection);
+
+                if (!isFilteredIn) return;
+
+                if (!dailyAgg[d]) dailyAgg[d] = { date: d, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                dailyAgg[d][metric] += val;
+            };
+
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) {
+                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                }
+            });
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    let stripeNetEur = 0;
+                    try {
+                        const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
+                        const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
+                        if (bt && bt.net) stripeNetEur = bt.net / 100;
+                    } catch (e) {}
+
+                    if (!stripeNetEur) {
+                        const curr = (r.currency || 'eur').toLowerCase();
+                        const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                        stripeNetEur = toEur(amt, curr) * 0.95; 
+                    }
+                    addMetric(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            diagnosisDailyData = Object.values(dailyAgg).map(d => {
+                d.cpm = d.imp > 0 ? (d.spend / d.imp) * 1000 : 0;
+                d.cpc = d.clicks > 0 ? d.spend / d.clicks : 0;
+                d.ctr = d.imp > 0 ? (d.clicks / d.imp) * 100 : 0;
+                d.optin = d.clicks > 0 ? (d.subs / d.clicks) * 100 : 0;
+                d.cps = d.subs > 0 ? (d.spend / d.subs) : (d.spend > 0 ? Infinity : 0);
+                d.revps = d.subs > 0 ? (d.net / d.subs) : 0;
+                d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
+                return d;
+            }).sort((a, b) => b.date.localeCompare(a.date)); // Sort Newest First
+
+            const tbody = document.getElementById('diagnosis-table-body');
+            tbody.innerHTML = diagnosisDailyData.map(d => `
+                <tr class="border-b transition hover:bg-gray-50">
+                    <td class="p-2 sm:p-3 font-bold text-gray-800">${d.date}</td>
+                    <td class="p-2 sm:p-3 text-right">€${d.spend.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.imp.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">€${d.cpm.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.clicks.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium">${d.ctr.toFixed(2)}%</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">€${d.cpc.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right">${d.subs.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium">${d.optin.toFixed(2)}%</td>
+                    <td class="p-2 sm:p-3 text-right font-bold text-gray-800">€${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-green-600">€${d.net.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">€${d.revps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right font-bold text-purple-700">${d.roas.toFixed(2)}x</td>
+                </tr>
+            `).join('');
+        }
+
+        function copyDiagnosisForGemini() {
+            const btn = document.getElementById('btn-copy-diagnosis');
+            
+            let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data for the selected period:\n\n`;
+            output += `| Date | Ad Spend (€) | Imp. | CPM (€) | Clicks | CTR (%) | CPC (€) | Subs | Opt-in (%) | Cost/Sub (€) | Net Rev (€) | Rev/Sub (€) | ROAS (x) |\n`;
+            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+            
+            diagnosisDailyData.forEach(d => {
+                output += `| ${d.date} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${d.cpc.toFixed(2)} | ${d.subs} | ${d.optin.toFixed(2)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
+            });
+
+            navigator.clipboard.writeText(output).then(() => {
+                const oldText = btn.innerText; btn.innerText = "✅ Copied! Paste it to me.";
+                btn.classList.replace('bg-indigo-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-green-700');
+                setTimeout(() => { 
+                    btn.innerText = oldText; 
+                    btn.classList.replace('bg-green-600', 'bg-indigo-600'); 
+                    btn.classList.replace('hover:bg-green-700', 'hover:bg-indigo-700'); 
+                }, 3000);
+            });
+        }
         // --- ETL Sync Logic ---
         function logToConsole(msg, type = 'info') {
             const c = document.getElementById('console');
