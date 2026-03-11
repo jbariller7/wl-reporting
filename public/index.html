@@ -1854,7 +1854,8 @@ const datasets = selectedMetrics.map(key => {
                 document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif;'>Error connecting to auth server.</h1>";
             }
         };
-      // --- AI DIAGNOSIS TAB LOGIC ---
+
+        // --- AI DIAGNOSIS TAB LOGIC ---
         let diagnosisDailyData = [];
 
         function loadDiagnosisData(raw) {
@@ -1954,29 +1955,7 @@ const datasets = selectedMetrics.map(key => {
             output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             
             diagnosisDailyData.forEach(d => {
-                output += `| ${d.date} | ${d.country} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${d.cpc.toFixed(2)} | ${d.subs} | ${d.optin.toFixed(2)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
-            });
-
-            navigator.clipboard.writeText(output).then(() => {
-                const oldText = btn.innerText; btn.innerText = "✅ Copied! Paste it to me.";
-                btn.classList.replace('bg-indigo-600', 'bg-green-600');
-                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-green-700');
-                setTimeout(() => { 
-                    btn.innerText = oldText; 
-                    btn.classList.replace('bg-green-600', 'bg-indigo-600'); 
-                    btn.classList.replace('hover:bg-green-700', 'hover:bg-indigo-700'); 
-                }, 3000);
-            });
-        }
-        function copyDiagnosisForGemini() {
-            const btn = document.getElementById('btn-copy-diagnosis');
-            
-            let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data for the selected period:\n\n`;
-            output += `| Date | Ad Spend (€) | Imp. | CPM (€) | Clicks | CTR (%) | CPC (€) | Subs | Opt-in (%) | Cost/Sub (€) | Net Rev (€) | Rev/Sub (€) | ROAS (x) |\n`;
-            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-            
-            diagnosisDailyData.forEach(d => {
-                output += `| ${d.date} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${d.cpc.toFixed(2)} | ${d.subs} | ${d.optin.toFixed(2)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
+                output += `| ${d.date} | ${d.country || 'Unknown'} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${d.cpc.toFixed(2)} | ${d.subs} | ${d.optin.toFixed(2)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
             });
 
             navigator.clipboard.writeText(output).then(() => {
