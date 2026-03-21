@@ -59,10 +59,10 @@
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-4 w-full lg:w-auto">
-                <div class="flex flex-col gap-1 w-full lg:w-56">
-                    <label class="text-xs sm:text-sm font-bold text-gray-700">Country / Region Filter</label>
-                    <select id="dash-country" class="border rounded p-2 text-sm w-full">
-                        <option value="ALL">All Locations</option>
+             <div class="flex flex-col gap-1 w-full lg:w-56">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">Country / Region Filter <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
+                    <select id="dash-country" multiple class="border rounded p-2 text-sm w-full h-20 bg-white shadow-inner">
+                        <option value="ALL" selected>All Locations</option>
                     </select>
                 </div>
                 <div class="flex flex-col gap-1 w-full lg:w-64">
@@ -770,7 +770,8 @@
 
             globalDashboardState.startDate = document.getElementById('dash-start').value || "2000-01-01";
             globalDashboardState.endDate = document.getElementById('dash-end').value || "2099-12-31";
-            globalDashboardState.filterSelection = document.getElementById('dash-country').value;
+            const countrySelectElem = document.getElementById('dash-country');
+            globalDashboardState.filterSelection = Array.from(countrySelectElem.selectedOptions).map(opt => opt.value);
             globalDashboardState.excludedRanges = getExcludedDateRanges();
             
             const adsetSelect = document.getElementById('dash-exclude-adsets');
@@ -798,8 +799,8 @@
                 adsetSelect.add(opt);
             });
 
-            const countrySelect = document.getElementById('dash-country');
-            const selectedCountry = countrySelect.value;
+const countrySelect = document.getElementById('dash-country');
+            const selectedCountries = Array.from(countrySelect.selectedOptions).map(opt => opt.value);
             const dropdownOptions = new Set();
 
             const addOpts = (cCode) => {
@@ -823,11 +824,10 @@
             regionsList.sort().forEach(opt => countrySelect.add(new Option(`🌍 ${opt.replace('REGION:', '')} (Region)`, opt)));
             countriesList.sort((a, b) => getCountryName(a).localeCompare(getCountryName(b))).forEach(opt => countrySelect.add(new Option(`🇺🇳 ${getCountryName(opt)}`, opt)));
             
-            if (Array.from(countrySelect.options).some(o => o.value === selectedCountry)) {
-                countrySelect.value = selectedCountry;
-            } else {
-                countrySelect.value = 'ALL';
-            }
+Array.from(countrySelect.options).forEach(opt => {
+                if (selectedCountries.includes(opt.value)) opt.selected = true;
+            });
+            if (countrySelect.selectedOptions.length === 0) countrySelect.value = 'ALL';
         }
 
         // --- DASHBOARD LOGIC ---
@@ -851,9 +851,13 @@
                 const regionNames = REGIONS[cCode] || [];
 
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
                     if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
@@ -1063,9 +1067,13 @@
                 const safeAdset = adsetName || 'Unattributed';
 
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
 
                 if (!isFilteredIn) return;
 
@@ -1298,9 +1306,13 @@
                 const regionNames = REGIONS[cCode] || [];
 
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
                     const periodKey = timeframe === 'weekly' ? getMonday(d) : d;
@@ -1384,10 +1396,14 @@
                 const regionNames = REGIONS[cleanCode] || [];
                 const safeAdset = adsetName || 'Unattributed';
 
-                let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cleanCode === filterSelection);
+let isFilteredIn = false;
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cleanCode === sel
+                    );
+                }
 
                 if (!isFilteredIn) return;
 
@@ -1495,9 +1511,13 @@
 
                 // 2. Check if it matches user's active filter
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
 
                 if (isFilteredIn) {
                     initDay(dailySelected, d);
@@ -1872,9 +1892,13 @@ const datasets = selectedMetrics.map(key => {
                 const regionNames = REGIONS[cCode] || [];
 
                 let isFilteredIn = false;
-                if (filterSelection === 'ALL') isFilteredIn = true;
-                else if (filterSelection.startsWith('REGION:')) isFilteredIn = regionNames.includes(filterSelection.replace('REGION:', ''));
-                else isFilteredIn = (cCode === filterSelection);
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
 
                 if (!isFilteredIn) return;
 
