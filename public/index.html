@@ -1602,7 +1602,14 @@ let sortedDates = Array.from(allDates).sort();
                 return new Chart(document.getElementById(ctxId).getContext('2d'), config);
             };
 
-            const locName = filterSelection === 'ALL' ? 'All Locations' : filterSelection.replace('REGION:', '');
+          let locName = 'Custom Filter';
+            if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                locName = 'All Locations';
+            } else if (filterSelection.length === 1) {
+                locName = filterSelection[0].replace('REGION:', '');
+            } else {
+                locName = filterSelection.length + ' Locations Selected';
+            }
             customChartDates = sortedDates;
 
             // Cache data for the Custom Chart
