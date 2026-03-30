@@ -2164,7 +2164,8 @@ let diagnosisDailyData = [];
                 const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
                 const targetRoas = parseFloat(document.getElementById('target-roas')?.value) || 2.0;
                 
-                const meaningfulSpend = d.spend >= 1.0; 
+                // If Meta chokes the spend to near zero, it is predictive auction rejection.
+                const isMicroSpend = d.spend < 0.6; 
                 
                 const isProfitable = d.roas_3d_avg >= targetRoas;
                 const isFatigued = d.ctr_trend <= -15 && d.cpc_trend >= 15;
@@ -2175,22 +2176,27 @@ let diagnosisDailyData = [];
                 const isCpmSpike = d.cpm_trend >= 50 && d.ctr >= 2.0; 
                 const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
 
-                // ADDED <br> TAGS TO STACK TEXT AND REDUCE COLUMN WIDTH
+                // LOGIC TREE
                 if (isProfitable) {
                     d.status = isFatigued ? '🟡 Profitable<br>(Fatigue Warning)' : '🟢 Highly<br>Profitable';
-                } else if (meaningfulSpend && isCpmSpike) {
+                } else if (d.roas_3d_avg === 0 && d.subs === 0 && d.cps_3d_avg === Infinity) {
+                    // Completely dead funnel over the 3-day window
+                    d.status = isMicroSpend ? '🔴 Dead<br>(Auction Rejection)' : '🔴 Critical<br>(Zero Conversions)';
+                } else if (isMicroSpend && d.roas_3d_avg < 1.0) {
+                    // Meta choked the spend because the predictive conversion is terrible.
+                    d.status = '🔴 Dead<br>(Auction Rejection)';
+                } else if (isCpmSpike) {
                     d.status = '🟣 Duplicate<br>(CPM Spike)';
-                } else if (meaningfulSpend && isHighCtrZeroSubs) {
+                } else if (isHighCtrZeroSubs && !isMicroSpend) {
                     d.status = '🟣 Duplicate<br>(High CTR/No Subs)';
-                } else if (meaningfulSpend && d.subs === 0 && d.roas_3d_avg === 0) { 
-                    d.status = d.ctr < 2.0 ? '🔴 Dead<br>(Renew Ads)' : '🔴 Critical<br>(Zero Conversions)';
-                } else if (meaningfulSpend && isHighCost && d.roas_3d_avg < 1.0) { 
+                } else if (isHighCost && d.roas_3d_avg < 1.0) { 
                     d.status = '🔴 Critical<br>(High Cost)';
-                } else if (meaningfulSpend && isFatigued) {
+                } else if (isFatigued) {
                     d.status = isGoodCost ? '🟢 Healthy<br>(Fatigue Starting)' : '🟡 Fatigued<br>(Renew Ads)';
-                } else if (meaningfulSpend && isBleeding) {
+                } else if (isBleeding) {
                     d.status = isGoodCost ? '🟢 Healthy<br>(Opt-ins Dropping)' : '🟠 Bleeding<br>(Fix Landing/Offer)';
-                } else if (isGoodCost || (!meaningfulSpend && (d.roas_3d_avg > 0 || d.subs > 0))) {
+                } else if (isGoodCost || (d.roas_3d_avg > 0.5 && d.roas_3d_avg < targetRoas)) {
+                    // It's generating cheap leads, or it's making *some* money (just under target)
                     d.status = '🟢 Healthy';
                 } else {
                     d.status = '🟡 Monitor';
