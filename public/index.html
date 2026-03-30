@@ -697,7 +697,9 @@
                 this.selectedValues.forEach(val => {
                     const opt = this.options.find(o => o.value === val);
                     const label = opt ? opt.label.replace(/🌍|🇺🇳|📦/g, '').trim() : val;
-                    html += `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center gap-1 whitespace-nowrap">${label} <button onclick="event.stopPropagation(); window.${this.id}_inst.toggle('${val}')" class="hover:text-red-500 font-bold ml-1">&times;</button></span>`;
+                    // FIX: Escape quotes and use bracket notation for the window variable
+                    const escapedVal = val.replace(/'/g, "\\'");
+                    html += `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center gap-1 whitespace-nowrap">${label} <button onclick="event.stopPropagation(); window['${this.id}_inst'].toggle('${escapedVal}')" class="hover:text-red-500 font-bold ml-1">&times;</button></span>`;
                 });
                 this.pillsContainer.innerHTML = html + `<input type="text" class="search-input outline-none text-sm flex-1 min-w-[60px] bg-transparent" placeholder="Search...">`;
                 this.input = this.container.querySelector('.search-input');
@@ -713,13 +715,14 @@
                         const isSelected = this.selectedValues.has(opt.value);
                         const bg = isSelected ? 'bg-blue-50 font-bold text-blue-800' : 'hover:bg-gray-100 text-gray-700';
                         const check = isSelected ? '✓ ' : '&nbsp;&nbsp;&nbsp;';
-                        html += `<div onclick="window.${this.id}_inst.toggle('${opt.value}')" class="p-2 text-sm cursor-pointer border-b last:border-0 ${bg}">${check}${opt.label}</div>`;
+                        // FIX: Escape quotes and use bracket notation for the window variable
+                        const escapedVal = opt.value.replace(/'/g, "\\'");
+                        html += `<div onclick="window['${this.id}_inst'].toggle('${escapedVal}')" class="p-2 text-sm cursor-pointer border-b last:border-0 ${bg}">${check}${opt.label}</div>`;
                     }
                 });
                 this.dropdown.innerHTML = html || '<div class="p-2 text-sm text-gray-500">No results</div>';
             }
         }
-
         const csCountry = new CustomMultiSelect('cs-country');
         const csAdsets = new CustomMultiSelect('cs-adsets');
 
