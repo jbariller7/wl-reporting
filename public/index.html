@@ -2160,13 +2160,13 @@ let diagnosisDailyData = [];
                 d.cpc_trend = calcTrend(d.cpc, pCpc);
                 d.optin_trend = calcTrend(d.optin, pOptin);
 
-                // Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
+// Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
                 const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
                 const targetRoas = parseFloat(document.getElementById('target-roas')?.value) || 2.0;
                 
                 const meaningfulSpend = d.spend >= 1.0; 
                 
-                const isProfitable = d.roas >= targetRoas;
+                const isProfitable = d.roas_3d_avg >= targetRoas;
                 const isFatigued = d.ctr_trend <= -15 && d.cpc_trend >= 15;
                 const isBleeding = d.optin_trend <= -25;
                 const isHighCost = d.cps_3d_avg > (targetCps * 1.5);
@@ -2175,21 +2175,22 @@ let diagnosisDailyData = [];
                 const isCpmSpike = d.cpm_trend >= 50 && d.ctr >= 2.0; 
                 const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
 
+                // ADDED <br> TAGS TO STACK TEXT AND REDUCE COLUMN WIDTH
                 if (isProfitable) {
-                    d.status = isFatigued ? '🟡 Profitable\n(Fatigue Warning)' : '🟢 Highly\nProfitable';
+                    d.status = isFatigued ? '🟡 Profitable<br>(Fatigue Warning)' : '🟢 Highly<br>Profitable';
                 } else if (meaningfulSpend && isCpmSpike) {
-                    d.status = '🟣 Duplicate\n(CPM Spike)';
+                    d.status = '🟣 Duplicate<br>(CPM Spike)';
                 } else if (meaningfulSpend && isHighCtrZeroSubs) {
-                    d.status = '🟣 Duplicate\n(High CTR/No Subs)';
-                } else if (meaningfulSpend && d.subs === 0 && d.roas === 0) {
-                    d.status = d.ctr < 2.0 ? '🔴 Dead (Renew Ads)' : '🔴 Critical (Zero Conversions)';
-                } else if (meaningfulSpend && isHighCost && d.roas < 1.0) {
-                    d.status = '🔴 Critical\n(High Cost)';
+                    d.status = '🟣 Duplicate<br>(High CTR/No Subs)';
+                } else if (meaningfulSpend && d.subs === 0 && d.roas_3d_avg === 0) { 
+                    d.status = d.ctr < 2.0 ? '🔴 Dead<br>(Renew Ads)' : '🔴 Critical<br>(Zero Conversions)';
+                } else if (meaningfulSpend && isHighCost && d.roas_3d_avg < 1.0) { 
+                    d.status = '🔴 Critical<br>(High Cost)';
                 } else if (meaningfulSpend && isFatigued) {
-                    d.status = isGoodCost ? '🟢 Healthy\n(Fatigue Starting)' : '🟡\nFatigued (Renew Ads)';
+                    d.status = isGoodCost ? '🟢 Healthy<br>(Fatigue Starting)' : '🟡 Fatigued<br>(Renew Ads)';
                 } else if (meaningfulSpend && isBleeding) {
-                    d.status = isGoodCost ? '🟢 Healthy\n(Opt-ins Dropping)' : '🟠\nBleeding (Fix Landing/Offer)';
-                } else if (isGoodCost || (!meaningfulSpend && (d.roas > 0 || d.subs > 0))) {
+                    d.status = isGoodCost ? '🟢 Healthy<br>(Opt-ins Dropping)' : '🟠 Bleeding<br>(Fix Landing/Offer)';
+                } else if (isGoodCost || (!meaningfulSpend && (d.roas_3d_avg > 0 || d.subs > 0))) {
                     d.status = '🟢 Healthy';
                 } else {
                     d.status = '🟡 Monitor';
@@ -2210,31 +2211,31 @@ let diagnosisDailyData = [];
                 return `<span class="${color} text-[10px] whitespace-nowrap">${icon} ${val > 0 ? '+' : ''}${val.toFixed(1)}%</span>`;
             };
 
-            const tbody = document.getElementById('diagnosis-table-body');
+const tbody = document.getElementById('diagnosis-table-body');
             tbody.innerHTML = diagnosisDailyData.map(d => `
                 <tr class="border-b transition hover:bg-gray-50">
-                    <td class="p-2 sm:p-3 font-bold text-gray-800">${d.date}</td>
-                    <td class="p-2 sm:p-3 text-gray-800 truncate max-w-[120px]" title="${d.country}">${d.country}</td>
-                    <td class="p-2 sm:p-3 text-gray-500 text-[10px] sm:text-xs truncate max-w-[120px]" title="${d.region}">${d.region}</td>
-                    <td class="p-2 sm:p-3 text-center text-xs whitespace-nowrap">${d.status}</td>
-                    <td class="p-2 sm:p-3 text-right">€${d.spend.toFixed(2)}</td>
-                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.imp.toLocaleString()}</td>
-                    <td class="p-2 sm:p-3 text-right text-gray-600 leading-tight">€${d.cpm.toFixed(2)}<br>${formatTrend(d.cpm_trend, true)}</td>
-                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.clicks.toLocaleString()}</td>
-                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium leading-tight">${d.ctr.toFixed(2)}%<br>${formatTrend(d.ctr_trend, false)}</td>
-                    <td class="p-2 sm:p-3 text-right text-gray-600 leading-tight">€${d.cpc.toFixed(2)}<br>${formatTrend(d.cpc_trend, true)}</td>
-                    <td class="p-2 sm:p-3 text-right">${d.subs.toLocaleString()}</td>
-                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium leading-tight">${d.optin.toFixed(2)}%<br>${formatTrend(d.optin_trend, false)}</td>
-                    <td class="p-2 sm:p-3 text-right leading-tight font-bold text-gray-800">
+                    <td class="p-1.5 sm:p-2 font-bold text-gray-800">${d.date}</td>
+                    <td class="p-1.5 sm:p-2 text-gray-800 truncate max-w-[100px]" title="${d.country}">${d.country}</td>
+                    <td class="p-1.5 sm:p-2 text-gray-500 text-[10px] sm:text-xs truncate max-w-[100px]" title="${d.region}">${d.region}</td>
+                    <td class="p-1.5 sm:p-2 text-center text-xs leading-tight">${d.status}</td>
+                    <td class="p-1.5 sm:p-2 text-right">€${d.spend.toFixed(2)}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-gray-600">${d.imp.toLocaleString()}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-gray-600 leading-tight">€${d.cpm.toFixed(2)}<br>${formatTrend(d.cpm_trend, true)}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-gray-600">${d.clicks.toLocaleString()}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-blue-600 font-medium leading-tight">${d.ctr.toFixed(2)}%<br>${formatTrend(d.ctr_trend, false)}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-gray-600 leading-tight">€${d.cpc.toFixed(2)}<br>${formatTrend(d.cpc_trend, true)}</td>
+                    <td class="p-1.5 sm:p-2 text-right">${d.subs.toLocaleString()}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-blue-600 font-medium leading-tight">${d.optin.toFixed(2)}%<br>${formatTrend(d.optin_trend, false)}</td>
+                    <td class="p-1.5 sm:p-2 text-right leading-tight font-bold text-gray-800">
                         €${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}<br>
                         <span class="text-[10px] font-medium text-orange-600">€${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)}</span>
                     </td>
-                    <td class="p-2 sm:p-3 text-right leading-tight text-green-600">
+                    <td class="p-1.5 sm:p-2 text-right leading-tight text-green-600">
                         €${d.net.toFixed(2)}<br>
                         <span class="text-[10px] font-medium text-gray-500">€${d.net_3d_avg.toFixed(2)}</span>
                     </td>
-                    <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">€${d.revps.toFixed(2)}</td>
-                    <td class="p-2 sm:p-3 text-right leading-tight font-bold text-purple-700">
+                    <td class="p-1.5 sm:p-2 text-right text-blue-800 font-medium">€${d.revps.toFixed(2)}</td>
+                    <td class="p-1.5 sm:p-2 text-right leading-tight font-bold text-purple-700">
                         ${d.roas.toFixed(2)}x<br>
                         <span class="text-[10px] font-medium text-gray-500">${d.roas_3d_avg.toFixed(2)}x</span>
                     </td>
@@ -2251,11 +2252,14 @@ let diagnosisDailyData = [];
             output += `| Date | Country | Region | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
             output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             
-            diagnosisDailyData.forEach(d => {
+diagnosisDailyData.forEach(d => {
                 const cpsStr = d.cps === Infinity ? '∞' : d.cps.toFixed(2);
                 const cps3dStr = d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2);
+                
+                // Strip the <br> tags so the markdown table doesn't break
+                const cleanStatus = d.status.replace(/<br>/g, ' ');
 
-                output += `| ${d.date} | ${d.country} | ${d.region} | ${d.status} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanStatus} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
             });
 
             navigator.clipboard.writeText(output).then(() => {
