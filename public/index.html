@@ -506,11 +506,10 @@
                                 <th class="p-2 sm:p-3 text-right">CPC (Trend)</th>
                                 <th class="p-2 sm:p-3 text-right">Subs</th>
                                 <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Opt-in % (Trend)</th>
-                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub</th>
-                                <th class="p-2 sm:p-3 text-right font-bold text-orange-600">3D Avg CPS</th>
-                                <th class="p-2 sm:p-3 text-right">Net Rev</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                                <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
                                 <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
-                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS</th>
+                                <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
                             </tr>
                         </thead>
                         <tbody id="diagnosis-table-body" class="text-xs sm:text-sm"></tbody>
@@ -2017,7 +2016,7 @@ let diagnosisDailyData = [];
                 const d = normalizeDate(date);
                 const code = (cCode || 'UNKNOWN').toUpperCase();
                 const key = `${d}_${code}`;
-                if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0 };
+                if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
                 allTimeAgg[key][metric] += val;
             };
 
@@ -2029,6 +2028,25 @@ let diagnosisDailyData = [];
                 }
             });
             raw.mailerlite.forEach(r => addAllTime(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    let stripeNetEur = 0;
+                    try {
+                        const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
+                        const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
+                        if (bt && bt.net) stripeNetEur = bt.net / 100;
+                    } catch (e) {}
+
+                    if (!stripeNetEur) {
+                        const curr = (r.currency || 'eur').toLowerCase();
+                        const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                        stripeNetEur = toEur(amt, curr) * 0.95; 
+                    }
+                    addAllTime(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
 
             // 2. Build the standard filtered daily aggregate
             const addMetric = (date, metric, val, countryCode) => {
@@ -2101,7 +2119,7 @@ let diagnosisDailyData = [];
                 d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
 
                 // Look back exactly 3 days prior
-                let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0;
+                let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0, pNet = 0;
                 let currDate = new Date(d.date);
                 for(let i = 0; i < 3; i++) {
                     currDate.setDate(currDate.getDate() - 1);
@@ -2111,15 +2129,20 @@ let diagnosisDailyData = [];
                         pImp += allTimeAgg[pKey].imp;
                         pClicks += allTimeAgg[pKey].clicks;
                         pSubs += allTimeAgg[pKey].subs;
+                        pNet += allTimeAgg[pKey].net;
                     }
                 }
 
-                // Calculate Rolling 3-Day Cost/Sub
+                // Calculate Rolling 3-Day + Current Day (4-day window) Averages
                 const rSpend = d.spend + pSpend;
                 const rSubs = d.subs + pSubs;
+                const rNet = d.net + pNet;
+                
                 d.cps_3d_avg = rSubs > 0 ? rSpend / rSubs : (rSpend > 0 ? Infinity : 0);
+                d.net_3d_avg = rNet / 4; // Average daily net revenue over the 4 days
+                d.roas_3d_avg = rSpend > 0 ? rNet / rSpend : 0;
 
-                // Calculate Previous 3 Days standalone metrics
+                // Calculate Previous 3 Days standalone metrics for trends
                 const pCtr = pImp > 0 ? (pClicks / pImp) * 100 : 0;
                 const pCpm = pImp > 0 ? (pSpend / pImp) * 1000 : 0;
                 const pCpc = pClicks > 0 ? (pSpend / pClicks) : 0;
@@ -2137,11 +2160,10 @@ let diagnosisDailyData = [];
                 d.cpc_trend = calcTrend(d.cpc, pCpc);
                 d.optin_trend = calcTrend(d.optin, pOptin);
 
-// Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
+                // Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
                 const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
                 const targetRoas = parseFloat(document.getElementById('target-roas')?.value) || 2.0;
                 
-                // Ignore micro-spend days from triggering false panics
                 const meaningfulSpend = d.spend >= 1.0; 
                 
                 const isProfitable = d.roas >= targetRoas;
@@ -2150,11 +2172,7 @@ let diagnosisDailyData = [];
                 const isHighCost = d.cps_3d_avg > (targetCps * 1.5);
                 const isGoodCost = d.cps_3d_avg > 0 && d.cps_3d_avg <= targetCps;
 
-                // --- NEW: "BAD POCKET" ESCAPE LOGIC ---
-                // 1. Violent CPM Spike: Meta forced you into an expensive auction, but CTR isn't dead.
                 const isCpmSpike = d.cpm_trend >= 50 && d.ctr >= 2.0; 
-                
-                // 2. High CTR / Zero Buyer Trap: Ads are getting clicks, but wrong pocket of users.
                 const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
 
                 if (isProfitable) {
@@ -2164,7 +2182,6 @@ let diagnosisDailyData = [];
                 } else if (meaningfulSpend && isHighCtrZeroSubs) {
                     d.status = '🟣 Duplicate (High CTR/No Subs)';
                 } else if (meaningfulSpend && d.subs === 0 && d.roas === 0) {
-                    // If CTR is also terrible, the creative is truly dead.
                     d.status = d.ctr < 2.0 ? '🔴 Dead (Renew Ads)' : '🔴 Critical (Zero Conversions)';
                 } else if (meaningfulSpend && isHighCost && d.roas < 1.0) {
                     d.status = '🔴 Critical (High Cost)';
@@ -2208,11 +2225,19 @@ let diagnosisDailyData = [];
                     <td class="p-2 sm:p-3 text-right text-gray-600 leading-tight">€${d.cpc.toFixed(2)}<br>${formatTrend(d.cpc_trend, true)}</td>
                     <td class="p-2 sm:p-3 text-right">${d.subs.toLocaleString()}</td>
                     <td class="p-2 sm:p-3 text-right text-blue-600 font-medium leading-tight">${d.optin.toFixed(2)}%<br>${formatTrend(d.optin_trend, false)}</td>
-                    <td class="p-2 sm:p-3 text-right font-bold text-gray-800">€${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}</td>
-                    <td class="p-2 sm:p-3 text-right font-medium text-orange-600">€${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)}</td>
-                    <td class="p-2 sm:p-3 text-right text-green-600">€${d.net.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right leading-tight font-bold text-gray-800">
+                        €${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}<br>
+                        <span class="text-[10px] font-medium text-orange-600">€${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)}</span>
+                    </td>
+                    <td class="p-2 sm:p-3 text-right leading-tight text-green-600">
+                        €${d.net.toFixed(2)}<br>
+                        <span class="text-[10px] font-medium text-gray-500">€${d.net_3d_avg.toFixed(2)}</span>
+                    </td>
                     <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">€${d.revps.toFixed(2)}</td>
-                    <td class="p-2 sm:p-3 text-right font-bold text-purple-700">${d.roas.toFixed(2)}x</td>
+                    <td class="p-2 sm:p-3 text-right leading-tight font-bold text-purple-700">
+                        ${d.roas.toFixed(2)}x<br>
+                        <span class="text-[10px] font-medium text-gray-500">${d.roas_3d_avg.toFixed(2)}x</span>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -2223,11 +2248,14 @@ let diagnosisDailyData = [];
             const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
 
             let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data with 3-Day Trends. Diagnose the issues:\n\n`;
-            output += `| Date | Country | Region | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub | 3D Avg CPS | Net Rev | Rev/Sub | ROAS |\n`;
-            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+            output += `| Date | Country | Region | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
+            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             
             diagnosisDailyData.forEach(d => {
-                output += `| ${d.date} | ${d.country} | ${d.region} | ${d.status} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
+                const cpsStr = d.cps === Infinity ? '∞' : d.cps.toFixed(2);
+                const cps3dStr = d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2);
+
+                output += `| ${d.date} | ${d.country} | ${d.region} | ${d.status} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
             });
 
             navigator.clipboard.writeText(output).then(() => {
