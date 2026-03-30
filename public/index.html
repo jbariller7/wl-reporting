@@ -59,15 +59,23 @@
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-4 w-full lg:w-auto">
-             <div class="flex flex-col gap-1 w-full lg:w-56">
-                    <label class="text-xs sm:text-sm font-bold text-gray-700">Country / Region Filter <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
-                    <select id="dash-country" multiple class="border rounded p-2 text-sm w-full h-20 bg-white shadow-inner">
-                        <option value="ALL" selected>All Locations</option>
-                    </select>
+<div class="flex flex-col gap-1 w-full lg:w-72">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">Filter Location or Batch Group</label>
+                    <div class="custom-select-container relative" id="cs-country">
+                        <div class="selected-pills flex flex-wrap gap-1 border rounded p-1.5 min-h-[42px] bg-white cursor-text items-center shadow-inner relative z-10">
+                            <input type="text" class="search-input outline-none text-sm flex-1 min-w-[60px] bg-transparent" placeholder="Search or select...">
+                        </div>
+                        <div class="dropdown-list absolute z-50 w-full bg-white border rounded shadow-xl max-h-64 overflow-y-auto hidden mt-1"></div>
+                    </div>
                 </div>
-                <div class="flex flex-col gap-1 w-full lg:w-64">
-                    <label class="text-xs sm:text-sm font-bold text-gray-700">Exclude Ad Sets <span class="text-[10px] text-gray-400 font-normal">(Ctrl/Cmd+Click)</span></label>
-                    <select id="dash-exclude-adsets" multiple class="border rounded p-2 text-sm w-full h-20 bg-white shadow-inner"></select>
+                <div class="flex flex-col gap-1 w-full lg:w-72">
+                    <label class="text-xs sm:text-sm font-bold text-gray-700">Exclude Ad Sets</label>
+                    <div class="custom-select-container relative" id="cs-adsets">
+                        <div class="selected-pills flex flex-wrap gap-1 border rounded p-1.5 min-h-[42px] bg-white cursor-text items-center shadow-inner relative z-10">
+                            <input type="text" class="search-input outline-none text-sm flex-1 min-w-[60px] bg-transparent" placeholder="Search ad sets...">
+                        </div>
+                        <div class="dropdown-list absolute z-50 w-full bg-white border rounded shadow-xl max-h-64 overflow-y-auto hidden mt-1"></div>
+                    </div>
                 </div>
             </div>
 
@@ -484,7 +492,7 @@
             <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
                 <div class="overflow-x-auto w-full">
                     <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
-                           <thead>
+<thead>
                             <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
                                 <th class="p-2 sm:p-3 font-bold">Date</th>
                                 <th class="p-2 sm:p-3 font-bold">Country</th>
@@ -549,11 +557,20 @@
 
     </div>
 
-    <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <h3 class="text-xl font-bold mb-2">Manage Regions</h3>
-            <p class="text-xs text-gray-500 mb-4">Format: <code>Region Name = CC, CC</code>. A country can be in multiple regions.</p>
-            <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-40 mb-4" placeholder="DACH = DE, AT, CH&#10;Francophone = FR, BE, CH"></textarea>
+<div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl flex flex-col md:flex-row gap-6">
+            <div class="flex-1">
+                <h3 class="text-xl font-bold mb-1">Manage Regions</h3>
+                <p class="text-xs text-gray-500 mb-2">Aggregate Steam stats (e.g., <code>DACH = DE, AT, CH</code>)</p>
+                <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="DACH = DE, AT, CH"></textarea>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-xl font-bold mb-1">Batch Groups (Quick Select)</h3>
+                <p class="text-xs text-gray-500 mb-2">Create shortcuts for the filter dropdown (e.g., <code>Batch 1 = US, DE, UK1, FR</code>)</p>
+                <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="Batch 1 = US, FR, UK1, EN2"></textarea>
+            </div>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-2xl absolute mt-[285px] sm:mt-[250px]">
             <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 w-full">
                 <button onclick="closeRegionModal()" class="w-full sm:w-auto px-4 py-2 text-gray-600 hover:bg-gray-100 rounded border sm:border-0">Cancel</button>
                 <button onclick="saveRegions()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
@@ -628,12 +645,97 @@
         }
 
         // --- Region Management ---
+// --- Custom MultiSelect Logic ---
+        class CustomMultiSelect {
+            constructor(id) {
+                this.id = id;
+                this.container = document.getElementById(id);
+                this.pillsContainer = this.container.querySelector('.selected-pills');
+                this.input = this.container.querySelector('.search-input');
+                this.dropdown = this.container.querySelector('.dropdown-list');
+                this.options = [];
+                this.selectedValues = new Set(id === 'cs-country' ? ['ALL'] : []);
+                window[id + '_inst'] = this;
+
+                this.input.addEventListener('focus', () => this.dropdown.classList.remove('hidden'));
+                this.input.addEventListener('input', () => this.renderDropdown());
+                document.addEventListener('click', (e) => {
+                    if (!this.container.contains(e.target)) this.dropdown.classList.add('hidden');
+                });
+                this.pillsContainer.addEventListener('click', (e) => {
+                    if (e.target === this.pillsContainer) this.input.focus();
+                });
+            }
+            setOptions(opts) {
+                this.options = opts;
+                this.renderPills();
+                this.renderDropdown();
+            }
+            getValues() { return Array.from(this.selectedValues); }
+            toggle(val) {
+                if (val === 'ALL') {
+                    this.selectedValues.clear();
+                    this.selectedValues.add('ALL');
+                } else if (val.startsWith('BATCH:')) {
+                    const batchName = val.replace('BATCH:', '');
+                    const items = window.BATCH_GROUPS[batchName] || [];
+                    this.selectedValues.delete('ALL');
+                    items.forEach(i => this.selectedValues.add(i));
+                    this.input.value = '';
+                } else {
+                    this.selectedValues.delete('ALL');
+                    if (this.selectedValues.has(val)) this.selectedValues.delete(val);
+                    else this.selectedValues.add(val);
+                }
+                if (this.selectedValues.size === 0 && this.id === 'cs-country') this.selectedValues.add('ALL');
+                this.renderPills();
+                this.renderDropdown();
+            }
+            renderPills() {
+                const currentInputVal = this.input.value;
+                let html = '';
+                this.selectedValues.forEach(val => {
+                    const opt = this.options.find(o => o.value === val);
+                    const label = opt ? opt.label.replace(/🌍|🇺🇳|📦/g, '').trim() : val;
+                    html += `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded flex items-center gap-1 whitespace-nowrap">${label} <button onclick="event.stopPropagation(); window.${this.id}_inst.toggle('${val}')" class="hover:text-red-500 font-bold ml-1">&times;</button></span>`;
+                });
+                this.pillsContainer.innerHTML = html + `<input type="text" class="search-input outline-none text-sm flex-1 min-w-[60px] bg-transparent" placeholder="Search...">`;
+                this.input = this.container.querySelector('.search-input');
+                this.input.value = currentInputVal;
+                this.input.addEventListener('focus', () => this.dropdown.classList.remove('hidden'));
+                this.input.addEventListener('input', () => this.renderDropdown());
+            }
+            renderDropdown() {
+                const query = this.input.value.toLowerCase();
+                let html = '';
+                this.options.forEach(opt => {
+                    if (opt.label.toLowerCase().includes(query) || opt.value.toLowerCase().includes(query)) {
+                        const isSelected = this.selectedValues.has(opt.value);
+                        const bg = isSelected ? 'bg-blue-50 font-bold text-blue-800' : 'hover:bg-gray-100 text-gray-700';
+                        const check = isSelected ? '✓ ' : '&nbsp;&nbsp;&nbsp;';
+                        html += `<div onclick="window.${this.id}_inst.toggle('${opt.value}')" class="p-2 text-sm cursor-pointer border-b last:border-0 ${bg}">${check}${opt.label}</div>`;
+                    }
+                });
+                this.dropdown.innerHTML = html || '<div class="p-2 text-sm text-gray-500">No results</div>';
+            }
+        }
+
+        const csCountry = new CustomMultiSelect('cs-country');
+        const csAdsets = new CustomMultiSelect('cs-adsets');
+
+        // --- Region & Batch Management ---
         let REGIONS = {};
+        window.BATCH_GROUPS = {};
+
         function loadRegions() {
-            const saved = localStorage.getItem('wl-regions') || "DACH = DE, AT, CH\nNorth America = US, CA\nUK = GB, UK\nFrancophone = FR, BE, CH\nHispanophone = ES, MX, AR";
-            document.getElementById('region-text').value = saved;
+            const savedReg = localStorage.getItem('wl-regions') || "DACH = DE, AT, CH\nFrancophone = FR, BE, CH";
+            const savedBatch = localStorage.getItem('wl-batch') || "Batch 1 = US, DE, UK1, FR\nBatch 2 = BR1, MX1, ASIAExp";
+            
+            document.getElementById('region-text').value = savedReg;
+            document.getElementById('batch-text').value = savedBatch;
+            
             REGIONS = {}; 
-            saved.split('\n').forEach(line => {
+            savedReg.split('\n').forEach(line => {
                 if (!line.includes('=')) return;
                 const [regName, codes] = line.split('=');
                 codes.split(',').forEach(c => {
@@ -642,10 +744,21 @@
                     REGIONS[cleanCode].push(regName.trim());
                 });
             });
+
+            window.BATCH_GROUPS = {};
+            savedBatch.split('\n').forEach(line => {
+                if (!line.includes('=')) return;
+                const [batchName, items] = line.split('=');
+                window.BATCH_GROUPS[batchName.trim()] = items.split(',').map(i => i.trim());
+            });
         }
         function openRegionModal() { document.getElementById('region-modal').classList.remove('hidden'); }
         function closeRegionModal() { document.getElementById('region-modal').classList.add('hidden'); }
-        function saveRegions() { localStorage.setItem('wl-regions', document.getElementById('region-text').value); closeRegionModal(); loadRegions(); refreshAllViews(); }
+        function saveRegions() { 
+            localStorage.setItem('wl-regions', document.getElementById('region-text').value); 
+            localStorage.setItem('wl-batch', document.getElementById('batch-text').value); 
+            closeRegionModal(); loadRegions(); refreshAllViews(); 
+        }
         loadRegions();
 
         // --- Exclude Dates UI & Logic ---
@@ -757,7 +870,7 @@
         }
 
         // --- UNIFIED MASTER LOAD ---
-        let globalDashboardState = {};
+let globalDashboardState = {};
 
         async function refreshAllViews() {
             const btn = document.getElementById('btn-global-load');
@@ -772,12 +885,11 @@
 
             globalDashboardState.startDate = document.getElementById('dash-start').value || "2000-01-01";
             globalDashboardState.endDate = document.getElementById('dash-end').value || "2099-12-31";
-            const countrySelectElem = document.getElementById('dash-country');
-            globalDashboardState.filterSelection = Array.from(countrySelectElem.selectedOptions).map(opt => opt.value);
             globalDashboardState.excludedRanges = getExcludedDateRanges();
             
-            const adsetSelect = document.getElementById('dash-exclude-adsets');
-            globalDashboardState.excludeAdsets = Array.from(adsetSelect.selectedOptions).map(opt => opt.value);
+            // Read from new Custom Multiselects
+            globalDashboardState.filterSelection = csCountry.getValues();
+            globalDashboardState.excludeAdsets = csAdsets.getValues();
 
             loadDashboardData(raw);
             loadFunnelData(raw);
@@ -790,21 +902,10 @@
         }
 
         function populateDropdowns(raw) {
-            const adsetSelect = document.getElementById('dash-exclude-adsets');
-            const selectedAdsets = Array.from(adsetSelect.selectedOptions).map(opt => opt.value);
             const uniqueAdsets = [...new Set(raw.meta.map(r => r.adset_name).filter(Boolean))].sort();
-            
-            adsetSelect.innerHTML = ''; 
-            uniqueAdsets.forEach(adset => {
-                const opt = new Option(adset, adset);
-                if (selectedAdsets.includes(adset)) opt.selected = true; 
-                adsetSelect.add(opt);
-            });
+            csAdsets.setOptions(uniqueAdsets.map(a => ({ value: a, label: a })));
 
-const countrySelect = document.getElementById('dash-country');
-            const selectedCountries = Array.from(countrySelect.selectedOptions).map(opt => opt.value);
             const dropdownOptions = new Set();
-
             const addOpts = (cCode) => {
                 if(!cCode) return;
                 const code = cCode.toUpperCase();
@@ -817,21 +918,20 @@ const countrySelect = document.getElementById('dash-country');
             raw.steam.forEach(r => addOpts(r.country));
             raw.stripe.forEach(r => addOpts(r.country));
             raw.mailerlite.forEach(r => addOpts(r.country));
-            raw.paypal.forEach(r => addOpts(r.country));
 
-            countrySelect.innerHTML = '<option value="ALL">All Locations</option>';
+            const countryOpts = [{ value: 'ALL', label: '🌍 All Locations' }];
+            
+            // Add Batch Groups first
+            Object.keys(window.BATCH_GROUPS).forEach(b => countryOpts.push({ value: `BATCH:${b}`, label: `📦 ${b} (Select All)` }));
+            
             const regionsList = [], countriesList = [];
             dropdownOptions.forEach(opt => opt.startsWith('REGION:') ? regionsList.push(opt) : countriesList.push(opt));
             
-            regionsList.sort().forEach(opt => countrySelect.add(new Option(`🌍 ${opt.replace('REGION:', '')} (Region)`, opt)));
-            countriesList.sort((a, b) => getCountryName(a).localeCompare(getCountryName(b))).forEach(opt => countrySelect.add(new Option(`🇺🇳 ${getCountryName(opt)}`, opt)));
+            regionsList.sort().forEach(opt => countryOpts.push({ value: opt, label: `🌍 ${opt.replace('REGION:', '')} (Region)` }));
+            countriesList.sort((a, b) => getCountryName(a).localeCompare(getCountryName(b))).forEach(opt => countryOpts.push({ value: opt, label: `🇺🇳 ${getCountryName(opt)}` }));
             
-Array.from(countrySelect.options).forEach(opt => {
-                if (selectedCountries.includes(opt.value)) opt.selected = true;
-            });
-            if (countrySelect.selectedOptions.length === 0) countrySelect.value = 'ALL';
+            csCountry.setOptions(countryOpts);
         }
-
         // --- DASHBOARD LOGIC ---
         let myChart = null;
         let dashCountryData = []; 
@@ -1884,32 +1984,191 @@ const datasets = selectedMetrics.map(key => {
                 document.body.innerHTML = "<h1 style='text-align:center; padding:50px; font-family:sans-serif;'>Error connecting to auth server.</h1>";
             }
         };
-function copyDiagnosisForGemini() {
-            const btn = document.getElementById('btn-copy-diagnosis');
-            
-            const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
+let diagnosisDailyData = [];
 
-            let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data with 3-Day Trends. Diagnose the issues:\n\n`;
-            output += `| Date | Country | Region | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub | 3D Avg CPS | Net Rev | Rev/Sub | ROAS |\n`;
-            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-            
-            diagnosisDailyData.forEach(d => {
-                output += `| ${d.date} | ${d.country} | ${d.region} | ${d.status} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${d.cps === Infinity ? '∞' : d.cps.toFixed(2)} | ${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)} | ${d.net.toFixed(2)} | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)} |\n`;
-            });
+        function loadDiagnosisData(raw) {
+            const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
+            const dailyAgg = {};
+            const allTimeAgg = {};
 
-            navigator.clipboard.writeText(output).then(() => {
-                const oldText = btn.innerText; btn.innerText = "✅ Copied! Paste it to me.";
-                btn.classList.replace('bg-indigo-600', 'bg-green-600');
-                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-green-700');
-                setTimeout(() => { 
-                    btn.innerText = oldText; 
-                    btn.classList.replace('bg-green-600', 'bg-indigo-600'); 
-                    btn.classList.replace('hover:bg-green-700', 'hover:bg-indigo-700'); 
-                }, 3000);
+            // 1. Build an all-time aggregate first so we can look back 3 days
+            const addAllTime = (date, metric, val, cCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                const code = (cCode || 'UNKNOWN').toUpperCase();
+                const key = `${d}_${code}`;
+                if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0 };
+                allTimeAgg[key][metric] += val;
+            };
+
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) {
+                    addAllTime(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                    addAllTime(r.date, 'imp', parseInt(r.impressions || 0), r.country);
+                    addAllTime(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                }
             });
+            raw.mailerlite.forEach(r => addAllTime(r.created_at, 'subs', 1, r.country));
+
+            // 2. Build the standard filtered daily aggregate
+            const addMetric = (date, metric, val, countryCode) => {
+                if (!date || isNaN(val)) return;
+                const d = normalizeDate(date);
+                if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
+
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const regionNames = REGIONS[cCode] || [];
+
+                let isFilteredIn = false;
+                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
+                    isFilteredIn = true;
+                } else {
+                    isFilteredIn = filterSelection.some(sel => 
+                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
+                    );
+                }
+                
+                if (!isFilteredIn) return;
+
+                const key = `${d}_${cCode}`;
+                if (!dailyAgg[key]) {
+                    dailyAgg[key] = { 
+                        date: d, countryCode: cCode, country: getCountryName(cCode), 
+                        region: regionNames.length > 0 ? regionNames.join(', ') : 'Other',
+                        spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
+                    };
+                }
+                dailyAgg[key][metric] += val;
+            };
+
+            // Process data for active filter
+            raw.meta.forEach(r => {
+                if (!excludeAdsets.includes(r.adset_name || '')) {
+                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
+                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
+                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
+                }
+            });
+            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.stripe.forEach(r => {
+                if (r.status !== 'unpaid') {
+                    let stripeNetEur = 0;
+                    try {
+                        const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
+                        const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
+                        if (bt && bt.net) stripeNetEur = bt.net / 100;
+                    } catch (e) {}
+
+                    if (!stripeNetEur) {
+                        const curr = (r.currency || 'eur').toLowerCase();
+                        const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
+                        stripeNetEur = toEur(amt, curr) * 0.95; 
+                    }
+                    addMetric(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
+                }
+            });
+            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+
+            // 3. Map, Calculate Trends, and Filter
+            diagnosisDailyData = Object.values(dailyAgg).map(d => {
+                d.cpm = d.imp > 0 ? (d.spend / d.imp) * 1000 : 0;
+                d.cpc = d.clicks > 0 ? d.spend / d.clicks : 0;
+                d.ctr = d.imp > 0 ? (d.clicks / d.imp) * 100 : 0;
+                d.optin = d.clicks > 0 ? (d.subs / d.clicks) * 100 : 0;
+                d.cps = d.subs > 0 ? (d.spend / d.subs) : (d.spend > 0 ? Infinity : 0);
+                d.revps = d.subs > 0 ? (d.net / d.subs) : 0;
+                d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
+
+                // Look back exactly 3 days prior
+                let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0;
+                let currDate = new Date(d.date);
+                for(let i = 0; i < 3; i++) {
+                    currDate.setDate(currDate.getDate() - 1);
+                    const pKey = `${currDate.toISOString().split('T')[0]}_${d.countryCode}`;
+                    if (allTimeAgg[pKey]) {
+                        pSpend += allTimeAgg[pKey].spend;
+                        pImp += allTimeAgg[pKey].imp;
+                        pClicks += allTimeAgg[pKey].clicks;
+                        pSubs += allTimeAgg[pKey].subs;
+                    }
+                }
+
+                // Calculate Rolling 3-Day Cost/Sub
+                const rSpend = d.spend + pSpend;
+                const rSubs = d.subs + pSubs;
+                d.cps_3d_avg = rSubs > 0 ? rSpend / rSubs : (rSpend > 0 ? Infinity : 0);
+
+                // Calculate Previous 3 Days standalone metrics
+                const pCtr = pImp > 0 ? (pClicks / pImp) * 100 : 0;
+                const pCpm = pImp > 0 ? (pSpend / pImp) * 1000 : 0;
+                const pCpc = pClicks > 0 ? (pSpend / pClicks) : 0;
+                const pOptin = pClicks > 0 ? (pSubs / pClicks) * 100 : 0;
+
+                // Calculate % Change Deltas
+                const calcTrend = (curr, prev) => {
+                    if (prev === 0 && curr > 0) return 100;
+                    if (prev === 0 && curr === 0) return 0;
+                    return ((curr - prev) / prev) * 100;
+                };
+
+                d.ctr_trend = calcTrend(d.ctr, pCtr);
+                d.cpm_trend = calcTrend(d.cpm, pCpm);
+                d.cpc_trend = calcTrend(d.cpc, pCpc);
+                d.optin_trend = calcTrend(d.optin, pOptin);
+
+                // Assign Intelligent Status Flags
+                const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
+                d.status = '🟢 Healthy';
+                
+                if (d.cps_3d_avg > targetCps && d.spend > 0) {
+                    d.status = '🔴 Critical'; // Cost is spiraling
+                } else if (d.optin_trend <= -15 && d.spend > 0) {
+                    d.status = '🟠 Bleeding'; // Funnel conversion dropped heavily
+                } else if (d.ctr_trend <= -10 && d.cpc_trend >= 10 && d.spend > 0) {
+                    d.status = '🟡 Fatigued'; // Ads are getting ignored and expensive
+                }
+
+                return d;
+            }).filter(d => d.spend > 0 || d.net > 0 || d.subs > 0)
+              .sort((a, b) => {
+                  if (a.date !== b.date) return b.date.localeCompare(a.date);
+                  return b.spend - a.spend;
+              });
+
+            const formatTrend = (val, isBadWhenPositive) => {
+                if (val === 0) return `<span class="text-gray-400 text-[10px]">0.0%</span>`;
+                const isBad = isBadWhenPositive ? val > 0 : val < 0;
+                const color = isBad ? 'text-red-500 font-bold' : 'text-green-500';
+                const icon = val > 0 ? '🔺' : '🔻';
+                return `<span class="${color} text-[10px] whitespace-nowrap">${icon} ${val > 0 ? '+' : ''}${val.toFixed(1)}%</span>`;
+            };
+
+            const tbody = document.getElementById('diagnosis-table-body');
+            tbody.innerHTML = diagnosisDailyData.map(d => `
+                <tr class="border-b transition hover:bg-gray-50">
+                    <td class="p-2 sm:p-3 font-bold text-gray-800">${d.date}</td>
+                    <td class="p-2 sm:p-3 text-gray-800 truncate max-w-[120px]" title="${d.country}">${d.country}</td>
+                    <td class="p-2 sm:p-3 text-gray-500 text-[10px] sm:text-xs truncate max-w-[120px]" title="${d.region}">${d.region}</td>
+                    <td class="p-2 sm:p-3 text-center text-xs whitespace-nowrap">${d.status}</td>
+                    <td class="p-2 sm:p-3 text-right">€${d.spend.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.imp.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600 leading-tight">€${d.cpm.toFixed(2)}<br>${formatTrend(d.cpm_trend, true)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600">${d.clicks.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium leading-tight">${d.ctr.toFixed(2)}%<br>${formatTrend(d.ctr_trend, false)}</td>
+                    <td class="p-2 sm:p-3 text-right text-gray-600 leading-tight">€${d.cpc.toFixed(2)}<br>${formatTrend(d.cpc_trend, true)}</td>
+                    <td class="p-2 sm:p-3 text-right">${d.subs.toLocaleString()}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-600 font-medium leading-tight">${d.optin.toFixed(2)}%<br>${formatTrend(d.optin_trend, false)}</td>
+                    <td class="p-2 sm:p-3 text-right font-bold text-gray-800">€${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right font-medium text-orange-600">€${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-green-600">€${d.net.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right text-blue-800 font-medium">€${d.revps.toFixed(2)}</td>
+                    <td class="p-2 sm:p-3 text-right font-bold text-purple-700">${d.roas.toFixed(2)}x</td>
+                </tr>
+            `).join('');
         }
 
-function copyDiagnosisForGemini() {
+        function copyDiagnosisForGemini() {
             const btn = document.getElementById('btn-copy-diagnosis');
             
             const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
