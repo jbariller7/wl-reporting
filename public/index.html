@@ -480,14 +480,30 @@
                 </div>
             </div>
         </div>
-       <div id="view-diagnosis" class="hidden">
+<div id="view-diagnosis" class="hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
-                <h2 class="text-xl font-bold text-gray-800">Daily Funnel Diagnosis (For AI)</h2>
+                <div class="flex flex-col">
+                    <h2 class="text-xl font-bold text-gray-800">Daily Funnel Diagnosis (For AI)</h2>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="setDiagnosisView('adset')" id="btn-diag-adset" class="bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm">By Region / Ad Set</button>
+                        <button onclick="setDiagnosisView('country')" id="btn-diag-country" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-gray-300">By Country</button>
+                    </div>
+                </div>
                 <button onclick="copyDiagnosisForGemini()" id="btn-copy-diagnosis" class="bg-indigo-600 text-white px-4 py-1.5 rounded shadow-sm hover:bg-indigo-700 transition text-sm font-bold w-full sm:w-auto">🤖 Copy Daily Data for Gemini</button>
             </div>
             <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
-                *This breaks down your entire mathematical funnel day-by-day <strong>AND by Country</strong>. Click the purple button to copy this data, then paste it back to the AI so it can diagnose exactly where the leak is happening.
+                *This breaks down your entire mathematical funnel day-by-day. Use the buttons above to toggle between the simplified <strong>Ad Set</strong> view or the detailed <strong>Country</strong> view. Click the purple button to copy this data, then paste it back to the AI.
             </div>
+
+            <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[1000px]">
+                        <thead id="diagnosis-thead"></thead>
+                        <tbody id="diagnosis-table-body" class="text-xs sm:text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
             <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
                 <div class="overflow-x-auto w-full">
@@ -557,7 +573,7 @@
     </div>
 
 <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl flex flex-col md:flex-row gap-6">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl flex flex-col md:flex-row gap-6">
             <div class="flex-1">
                 <h3 class="text-xl font-bold mb-1">Manage Regions</h3>
                 <p class="text-xs text-gray-500 mb-2">Aggregate Steam stats (e.g., <code>DACH = DE, AT, CH</code>)</p>
@@ -568,8 +584,13 @@
                 <p class="text-xs text-gray-500 mb-2">Create shortcuts for the filter dropdown.</p>
                 <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="Batch 1 = US, IE1, UK1, CAN1"></textarea>
             </div>
+            <div class="flex-1">
+                <h3 class="text-xl font-bold mb-1">Event Calendar</h3>
+                <p class="text-xs text-gray-500 mb-2">Format: <code>YYYY-MM-DD | AdSet (or ALL) | Text</code></p>
+                <textarea id="event-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="2026-03-24 | ALL | End of Steam Sale&#10;2026-03-30 | US | Duplicated (New Pocket)"></textarea>
+            </div>
         </div>
-        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-2xl absolute mt-[350px] sm:mt-[300px]">
+        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-4xl absolute mt-[350px] sm:mt-[300px]">
             <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 w-full">
                 <button onclick="closeRegionModal()" class="w-full sm:w-auto px-4 py-2 text-gray-600 hover:bg-gray-100 rounded border sm:border-0">Cancel</button>
                 <button onclick="saveRegions()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
@@ -725,20 +746,24 @@
         const csCountry = new CustomMultiSelect('cs-country');
         const csAdsets = new CustomMultiSelect('cs-adsets');
 
-// --- Region & Batch Management ---
+// --- Region, Batch & Event Management ---
         let REGIONS = {};
         window.BATCH_GROUPS = {};
+        let EVENT_CALENDAR = [];
 
         function loadRegions() {
-            // Your new master defaults
+            // Master Defaults
             const defaultReg = "EN6 = BE, IS, SK, CY, RO, MT, EE\nOCEANIA1 = NZ, AU\nJPEN = JP\nKREN = KR\nUK1 = GB\nNO2 = NO, FI, DK\nIL1 = IL\nEN5 = AL, NZ, ZA, TR, AE, GR, CN, HR, BG, CZ, LT, HU, QA, LV\nCAN1 = CA\nIE1 = IE\nASIAExp = SG, HK, TW\nPT2 = PT\nBR1 = BR\nUS = US\nFR = FR\nIT = IT\nDE = DE\nES = ES\nALP1 = AT, CH\nMX1 = MX\nPL = PL";
             const defaultBatch = "Batch 1 = US, IE1, UK1, CAN1, OCEANIA1, IL1\nBatch 2 = EN6, NO2, EN5, FR, IT, PL, ALP1\nBatch 3 = BR1, MX1, ASIAExp, JPEN, KREN, PT2";
+            const defaultEvents = "2026-03-24 | ALL | End of Steam Sale";
             
             const savedReg = localStorage.getItem('wl-regions') || defaultReg;
             const savedBatch = localStorage.getItem('wl-batch') || defaultBatch;
+            const savedEvents = localStorage.getItem('wl-events') || defaultEvents;
             
             document.getElementById('region-text').value = savedReg;
             document.getElementById('batch-text').value = savedBatch;
+            document.getElementById('event-text').value = savedEvents;
             
             REGIONS = {}; 
             const allRegionNames = new Set();
@@ -748,7 +773,6 @@
                 const [regName, codes] = line.split('=');
                 const cleanRegName = regName.trim();
                 allRegionNames.add(cleanRegName.toUpperCase());
-
                 codes.split(',').forEach(c => {
                     const cleanCode = c.trim().toUpperCase();
                     if (!REGIONS[cleanCode]) REGIONS[cleanCode] = [];
@@ -762,20 +786,24 @@
                 const [batchName, items] = line.split('=');
                 window.BATCH_GROUPS[batchName.trim()] = items.split(',').map(i => {
                     const cleanItem = i.trim();
-                    // SMART FIX: If this item is defined as a Region, prefix it so it matches the Dropdown values
-                    if (allRegionNames.has(cleanItem.toUpperCase())) {
-                        return `REGION:${cleanItem}`;
-                    }
-                    // Otherwise assume it's a country code (like US, FR)
+                    if (allRegionNames.has(cleanItem.toUpperCase())) return `REGION:${cleanItem}`;
                     return cleanItem.toUpperCase();
                 });
             });
+
+            EVENT_CALENDAR = [];
+            savedEvents.split('\n').forEach(line => {
+                const parts = line.split('|').map(p => p.trim());
+                if (parts.length === 3) EVENT_CALENDAR.push({ date: parts[0], target: parts[1].toUpperCase(), text: parts[2] });
+            });
         }
+
         function openRegionModal() { document.getElementById('region-modal').classList.remove('hidden'); }
         function closeRegionModal() { document.getElementById('region-modal').classList.add('hidden'); }
         function saveRegions() { 
             localStorage.setItem('wl-regions', document.getElementById('region-text').value); 
             localStorage.setItem('wl-batch', document.getElementById('batch-text').value); 
+            localStorage.setItem('wl-events', document.getElementById('event-text').value); 
             closeRegionModal(); loadRegions(); refreshAllViews(); 
         }
         loadRegions();
@@ -2004,20 +2032,41 @@ const datasets = selectedMetrics.map(key => {
             }
         };
 let diagnosisDailyData = [];
+        let currentDiagnosisView = 'adset'; // Default View
+
+        function setDiagnosisView(view) {
+            currentDiagnosisView = view;
+            document.getElementById('btn-diag-adset').className = view === 'adset' ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-gray-300';
+            document.getElementById('btn-diag-country').className = view === 'country' ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-gray-300';
+            refreshAllViews(); // Re-group data
+        }
 
         function loadDiagnosisData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
             const dailyAgg = {};
             const allTimeAgg = {};
 
-            // 1. Build an all-time aggregate first so we can look back 3 days
+            const getKeysToUpdate = (dateStr, cCode) => {
+                const keys = [];
+                const d = normalizeDate(dateStr);
+                const regionNames = REGIONS[cCode] || [];
+                
+                if (currentDiagnosisView === 'adset') {
+                    const regionsToCredit = regionNames.length > 0 ? regionNames : ['Unattributed'];
+                    regionsToCredit.forEach(reg => keys.push({ key: `${d}_${reg}`, groupKey: reg, region: reg, country: 'Multiple' }));
+                } else {
+                    keys.push({ key: `${d}_${cCode}`, groupKey: cCode, region: regionNames.length > 0 ? regionNames.join(', ') : 'Other', country: getCountryName(cCode) });
+                }
+                return { d, keys, regionNames };
+            };
+
             const addAllTime = (date, metric, val, cCode) => {
                 if (!date || isNaN(val)) return;
-                const d = normalizeDate(date);
-                const code = (cCode || 'UNKNOWN').toUpperCase();
-                const key = `${d}_${code}`;
-                if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
-                allTimeAgg[key][metric] += val;
+                const { keys } = getKeysToUpdate(date, (cCode || 'UNKNOWN').toUpperCase());
+                keys.forEach(({ key }) => {
+                    if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    allTimeAgg[key][metric] += val;
+                });
             };
 
             raw.meta.forEach(r => {
@@ -2037,7 +2086,6 @@ let diagnosisDailyData = [];
                         const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
                         if (bt && bt.net) stripeNetEur = bt.net / 100;
                     } catch (e) {}
-
                     if (!stripeNetEur) {
                         const curr = (r.currency || 'eur').toLowerCase();
                         const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
@@ -2048,38 +2096,25 @@ let diagnosisDailyData = [];
             });
             raw.paypal.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
 
-            // 2. Build the standard filtered daily aggregate
             const addMetric = (date, metric, val, countryCode) => {
                 if (!date || isNaN(val)) return;
-                const d = normalizeDate(date);
+                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
+                const { d, keys, regionNames } = getKeysToUpdate(date, cCode);
+                
                 if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
 
-                const cCode = (countryCode || 'UNKNOWN').toUpperCase();
-                const regionNames = REGIONS[cCode] || [];
-
-                let isFilteredIn = false;
-                if (filterSelection.includes('ALL') || filterSelection.length === 0) {
-                    isFilteredIn = true;
-                } else {
-                    isFilteredIn = filterSelection.some(sel => 
-                        sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel
-                    );
+                let isFilteredIn = filterSelection.includes('ALL') || filterSelection.length === 0;
+                if (!isFilteredIn) {
+                    isFilteredIn = filterSelection.some(sel => sel.startsWith('REGION:') ? regionNames.includes(sel.replace('REGION:', '')) : cCode === sel);
                 }
-                
                 if (!isFilteredIn) return;
 
-                const key = `${d}_${cCode}`;
-                if (!dailyAgg[key]) {
-                    dailyAgg[key] = { 
-                        date: d, countryCode: cCode, country: getCountryName(cCode), 
-                        region: regionNames.length > 0 ? regionNames.join(', ') : 'Other',
-                        spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 
-                    };
-                }
-                dailyAgg[key][metric] += val;
+                keys.forEach(({ key, groupKey, region, country }) => {
+                    if (!dailyAgg[key]) dailyAgg[key] = { date: d, groupKey, country, region, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
+                    dailyAgg[key][metric] += val;
+                });
             };
 
-            // Process data for active filter
             raw.meta.forEach(r => {
                 if (!excludeAdsets.includes(r.adset_name || '')) {
                     addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
@@ -2097,7 +2132,6 @@ let diagnosisDailyData = [];
                         const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
                         if (bt && bt.net) stripeNetEur = bt.net / 100;
                     } catch (e) {}
-
                     if (!stripeNetEur) {
                         const curr = (r.currency || 'eur').toLowerCase();
                         const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
@@ -2108,7 +2142,6 @@ let diagnosisDailyData = [];
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
 
-            // 3. Map, Calculate Trends, and Filter
             diagnosisDailyData = Object.values(dailyAgg).map(d => {
                 d.cpm = d.imp > 0 ? (d.spend / d.imp) * 1000 : 0;
                 d.cpc = d.clicks > 0 ? d.spend / d.clicks : 0;
@@ -2118,12 +2151,14 @@ let diagnosisDailyData = [];
                 d.revps = d.subs > 0 ? (d.net / d.subs) : 0;
                 d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
 
-                // Look back exactly 3 days prior
+                // Load Events for this row
+                d.events = EVENT_CALENDAR.filter(e => e.date === d.date && (e.target === 'ALL' || e.target === d.groupKey)).map(e => e.text).join('; ');
+
                 let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0, pNet = 0;
                 let currDate = new Date(d.date);
                 for(let i = 0; i < 3; i++) {
                     currDate.setDate(currDate.getDate() - 1);
-                    const pKey = `${currDate.toISOString().split('T')[0]}_${d.countryCode}`;
+                    const pKey = `${currDate.toISOString().split('T')[0]}_${d.groupKey}`;
                     if (allTimeAgg[pKey]) {
                         pSpend += allTimeAgg[pKey].spend;
                         pImp += allTimeAgg[pKey].imp;
@@ -2133,22 +2168,19 @@ let diagnosisDailyData = [];
                     }
                 }
 
-                // Calculate Rolling 3-Day + Current Day (4-day window) Averages
                 const rSpend = d.spend + pSpend;
                 const rSubs = d.subs + pSubs;
                 const rNet = d.net + pNet;
                 
                 d.cps_3d_avg = rSubs > 0 ? rSpend / rSubs : (rSpend > 0 ? Infinity : 0);
-                d.net_3d_avg = rNet / 4; // Average daily net revenue over the 4 days
+                d.net_3d_avg = rNet / 4; 
                 d.roas_3d_avg = rSpend > 0 ? rNet / rSpend : 0;
 
-                // Calculate Previous 3 Days standalone metrics for trends
                 const pCtr = pImp > 0 ? (pClicks / pImp) * 100 : 0;
                 const pCpm = pImp > 0 ? (pSpend / pImp) * 1000 : 0;
                 const pCpc = pClicks > 0 ? (pSpend / pClicks) : 0;
                 const pOptin = pClicks > 0 ? (pSubs / pClicks) * 100 : 0;
 
-                // Calculate % Change Deltas
                 const calcTrend = (curr, prev) => {
                     if (prev === 0 && curr > 0) return 100;
                     if (prev === 0 && curr === 0) return 0;
@@ -2160,12 +2192,9 @@ let diagnosisDailyData = [];
                 d.cpc_trend = calcTrend(d.cpc, pCpc);
                 d.optin_trend = calcTrend(d.optin, pOptin);
 
-// Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
                 const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
                 const targetRoas = parseFloat(document.getElementById('target-roas')?.value) || 2.0;
-                
-                // If Meta chokes the spend to near zero, it is predictive auction rejection.
-                const isMicroSpend = d.spend < 0.6; 
+                const meaningfulSpend = d.spend >= 1.0; 
                 
                 const isProfitable = d.roas_3d_avg >= targetRoas;
                 const isFatigued = d.ctr_trend <= -15 && d.cpc_trend >= 15;
@@ -2176,27 +2205,23 @@ let diagnosisDailyData = [];
                 const isCpmSpike = d.cpm_trend >= 50 && d.ctr >= 2.0; 
                 const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
 
-                // LOGIC TREE
                 if (isProfitable) {
                     d.status = isFatigued ? '🟡 Profitable<br>(Fatigue Warning)' : '🟢 Highly<br>Profitable';
-                } else if (d.roas_3d_avg === 0 && d.subs === 0 && d.cps_3d_avg === Infinity) {
-                    // Completely dead funnel over the 3-day window
-                    d.status = isMicroSpend ? '🔴 Dead<br>(Auction Rejection)' : '🔴 Critical<br>(Zero Conversions)';
-                } else if (isMicroSpend && d.roas_3d_avg < 1.0) {
-                    // Meta choked the spend because the predictive conversion is terrible.
-                    d.status = '🔴 Dead<br>(Auction Rejection)';
-                } else if (isCpmSpike) {
+                } else if (meaningfulSpend && isCpmSpike) {
                     d.status = '🟣 Duplicate<br>(CPM Spike)';
-                } else if (isHighCtrZeroSubs && !isMicroSpend) {
+                } else if (meaningfulSpend && isHighCtrZeroSubs) {
                     d.status = '🟣 Duplicate<br>(High CTR/No Subs)';
-                } else if (isHighCost && d.roas_3d_avg < 1.0) { 
+                } else if (d.roas_3d_avg === 0 && d.subs === 0 && d.cps_3d_avg === Infinity) {
+                    d.status = d.spend < 1.0 ? '🔴 Dead<br>(Auction Rejection)' : '🔴 Critical<br>(Zero Conversions)';
+                } else if (d.spend < 1.0 && d.roas_3d_avg < 1.0) {
+                    d.status = '🔴 Dead<br>(Auction Rejection)';
+                } else if (meaningfulSpend && isHighCost && d.roas_3d_avg < 1.0) { 
                     d.status = '🔴 Critical<br>(High Cost)';
-                } else if (isFatigued) {
+                } else if (meaningfulSpend && isFatigued) {
                     d.status = isGoodCost ? '🟢 Healthy<br>(Fatigue Starting)' : '🟡 Fatigued<br>(Renew Ads)';
-                } else if (isBleeding) {
+                } else if (meaningfulSpend && isBleeding) {
                     d.status = isGoodCost ? '🟢 Healthy<br>(Opt-ins Dropping)' : '🟠 Bleeding<br>(Fix Landing/Offer)';
-                } else if (isGoodCost || (d.roas_3d_avg > 0.5 && d.roas_3d_avg < targetRoas)) {
-                    // It's generating cheap leads, or it's making *some* money (just under target)
+                } else if (isGoodCost || d.roas_3d_avg > 0) {
                     d.status = '🟢 Healthy';
                 } else {
                     d.status = '🟡 Monitor';
@@ -2217,12 +2242,35 @@ let diagnosisDailyData = [];
                 return `<span class="${color} text-[10px] whitespace-nowrap">${icon} ${val > 0 ? '+' : ''}${val.toFixed(1)}%</span>`;
             };
 
-const tbody = document.getElementById('diagnosis-table-body');
-            tbody.innerHTML = diagnosisDailyData.map(d => `
+            // Render Header dynamically based on view
+            document.getElementById('diagnosis-thead').innerHTML = `
+                <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
+                    <th class="p-2 sm:p-3 font-bold">Date</th>
+                    <th class="p-2 sm:p-3 font-bold">${currentDiagnosisView === 'adset' ? 'Ad Set / Region' : 'Country'}</th>
+                    ${currentDiagnosisView === 'country' ? '<th class="p-2 sm:p-3 font-bold">Region</th>' : ''}
+                    <th class="p-2 sm:p-3 text-center font-bold text-indigo-600">Events Log</th>
+                    <th class="p-2 sm:p-3 text-center font-bold">Status</th>
+                    <th class="p-2 sm:p-3 text-right">Spend</th>
+                    <th class="p-2 sm:p-3 text-right">Imp.</th>
+                    <th class="p-2 sm:p-3 text-right">CPM (Trend)</th>
+                    <th class="p-2 sm:p-3 text-right">Clicks</th>
+                    <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">CTR % (Trend)</th>
+                    <th class="p-2 sm:p-3 text-right">CPC (Trend)</th>
+                    <th class="p-2 sm:p-3 text-right">Subs</th>
+                    <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Opt-in % (Trend)</th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                    <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                    <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                </tr>
+            `;
+
+            document.getElementById('diagnosis-table-body').innerHTML = diagnosisDailyData.map(d => `
                 <tr class="border-b transition hover:bg-gray-50">
                     <td class="p-1.5 sm:p-2 font-bold text-gray-800">${d.date}</td>
-                    <td class="p-1.5 sm:p-2 text-gray-800 truncate max-w-[100px]" title="${d.country}">${d.country}</td>
-                    <td class="p-1.5 sm:p-2 text-gray-500 text-[10px] sm:text-xs truncate max-w-[100px]" title="${d.region}">${d.region}</td>
+                    <td class="p-1.5 sm:p-2 text-gray-800 font-bold truncate max-w-[100px]" title="${d.groupKey}">${d.groupKey}</td>
+                    ${currentDiagnosisView === 'country' ? `<td class="p-1.5 sm:p-2 text-gray-500 text-[10px] sm:text-xs truncate max-w-[100px]" title="${d.region}">${d.region}</td>` : ''}
+                    <td class="p-1.5 sm:p-2 text-center text-xs text-indigo-600 font-bold max-w-[120px] truncate" title="${d.events}">${d.events || '-'}</td>
                     <td class="p-1.5 sm:p-2 text-center text-xs leading-tight">${d.status}</td>
                     <td class="p-1.5 sm:p-2 text-right">€${d.spend.toFixed(2)}</td>
                     <td class="p-1.5 sm:p-2 text-right text-gray-600">${d.imp.toLocaleString()}</td>
@@ -2251,21 +2299,29 @@ const tbody = document.getElementById('diagnosis-table-body');
 
         function copyDiagnosisForGemini() {
             const btn = document.getElementById('btn-copy-diagnosis');
-            
             const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
 
             let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data with 3-Day Trends. Diagnose the issues:\n\n`;
-            output += `| Date | Country | Region | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
-            output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             
-diagnosisDailyData.forEach(d => {
+            if (currentDiagnosisView === 'adset') {
+                output += `| Date | Ad Set / Region | Events | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
+                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+            } else {
+                output += `| Date | Country | Region | Events | Status | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
+                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+            }
+            
+            diagnosisDailyData.forEach(d => {
                 const cpsStr = d.cps === Infinity ? '∞' : d.cps.toFixed(2);
                 const cps3dStr = d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2);
-                
-                // Strip the <br> tags so the markdown table doesn't break
                 const cleanStatus = d.status.replace(/<br>/g, ' ');
+                const cleanEvents = d.events || '-';
 
-                output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanStatus} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                if (currentDiagnosisView === 'adset') {
+                    output += `| ${d.date} | ${d.groupKey} | ${cleanEvents} | ${cleanStatus} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                } else {
+                    output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanEvents} | ${cleanStatus} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                }
             });
 
             navigator.clipboard.writeText(output).then(() => {
