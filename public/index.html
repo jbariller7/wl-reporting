@@ -562,15 +562,15 @@
             <div class="flex-1">
                 <h3 class="text-xl font-bold mb-1">Manage Regions</h3>
                 <p class="text-xs text-gray-500 mb-2">Aggregate Steam stats (e.g., <code>DACH = DE, AT, CH</code>)</p>
-                <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="DACH = DE, AT, CH"></textarea>
+                <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="EN6 = BE, IS, SK, CY, RO, MT, EE"></textarea>
             </div>
             <div class="flex-1">
                 <h3 class="text-xl font-bold mb-1">Batch Groups (Quick Select)</h3>
-                <p class="text-xs text-gray-500 mb-2">Create shortcuts for the filter dropdown (e.g., <code>Batch 1 = US, DE, UK1, FR</code>)</p>
-                <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="Batch 1 = US, FR, UK1, EN2"></textarea>
+                <p class="text-xs text-gray-500 mb-2">Create shortcuts for the filter dropdown.</p>
+                <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="Batch 1 = US, IE1, UK1, CAN1"></textarea>
             </div>
         </div>
-        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-2xl absolute mt-[285px] sm:mt-[250px]">
+        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-2xl absolute mt-[350px] sm:mt-[300px]">
             <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 w-full">
                 <button onclick="closeRegionModal()" class="w-full sm:w-auto px-4 py-2 text-gray-600 hover:bg-gray-100 rounded border sm:border-0">Cancel</button>
                 <button onclick="saveRegions()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
@@ -726,25 +726,34 @@
         const csCountry = new CustomMultiSelect('cs-country');
         const csAdsets = new CustomMultiSelect('cs-adsets');
 
-        // --- Region & Batch Management ---
+// --- Region & Batch Management ---
         let REGIONS = {};
         window.BATCH_GROUPS = {};
 
         function loadRegions() {
-            const savedReg = localStorage.getItem('wl-regions') || "DACH = DE, AT, CH\nFrancophone = FR, BE, CH";
-            const savedBatch = localStorage.getItem('wl-batch') || "Batch 1 = US, DE, UK1, FR\nBatch 2 = BR1, MX1, ASIAExp";
+            // Your new master defaults
+            const defaultReg = "EN6 = BE, IS, SK, CY, RO, MT, EE\nOCEANIA1 = NZ, AU\nJPEN = JP\nKREN = KR\nUK1 = GB\nNO2 = NO, FI, DK\nIL1 = IL\nEN5 = AL, NZ, ZA, TR, AE, GR, CN, HR, BG, CZ, LT, HU, QA, LV\nCAN1 = CA\nIE1 = IE\nASIAExp = SG, HK, TW\nPT2 = PT\nBR1 = BR\nUS = US\nFR = FR\nIT = IT\nDE = DE\nES = ES\nALP1 = AT, CH\nMX1 = MX\nPL = PL";
+            const defaultBatch = "Batch 1 = US, IE1, UK1, CAN1, OCEANIA1, IL1\nBatch 2 = EN6, NO2, EN5, FR, IT, PL, ALP1\nBatch 3 = BR1, MX1, ASIAExp, JPEN, KREN, PT2";
+            
+            const savedReg = localStorage.getItem('wl-regions') || defaultReg;
+            const savedBatch = localStorage.getItem('wl-batch') || defaultBatch;
             
             document.getElementById('region-text').value = savedReg;
             document.getElementById('batch-text').value = savedBatch;
             
             REGIONS = {}; 
+            const allRegionNames = new Set();
+
             savedReg.split('\n').forEach(line => {
                 if (!line.includes('=')) return;
                 const [regName, codes] = line.split('=');
+                const cleanRegName = regName.trim();
+                allRegionNames.add(cleanRegName.toUpperCase());
+
                 codes.split(',').forEach(c => {
                     const cleanCode = c.trim().toUpperCase();
                     if (!REGIONS[cleanCode]) REGIONS[cleanCode] = [];
-                    REGIONS[cleanCode].push(regName.trim());
+                    REGIONS[cleanCode].push(cleanRegName);
                 });
             });
 
@@ -752,7 +761,15 @@
             savedBatch.split('\n').forEach(line => {
                 if (!line.includes('=')) return;
                 const [batchName, items] = line.split('=');
-                window.BATCH_GROUPS[batchName.trim()] = items.split(',').map(i => i.trim());
+                window.BATCH_GROUPS[batchName.trim()] = items.split(',').map(i => {
+                    const cleanItem = i.trim();
+                    // SMART FIX: If this item is defined as a Region, prefix it so it matches the Dropdown values
+                    if (allRegionNames.has(cleanItem.toUpperCase())) {
+                        return `REGION:${cleanItem}`;
+                    }
+                    // Otherwise assume it's a country code (like US, FR)
+                    return cleanItem.toUpperCase();
+                });
             });
         }
         function openRegionModal() { document.getElementById('region-modal').classList.remove('hidden'); }
