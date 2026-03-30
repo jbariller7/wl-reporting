@@ -36,7 +36,8 @@
                     <button onclick="switchTab('diagnosis')" id="tab-diagnosis" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">AI Diagnosis</button>
                     <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Funnel Health</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">ROAS Scaling</button>
-                    <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
+                <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
+                    <button onclick="switchTab('calendar')" id="tab-calendar" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Calendar</button>
                     <button onclick="switchTab('sync')" id="tab-sync" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Data Sync</button>
                 </div>
             </div>
@@ -480,6 +481,40 @@
                 </div>
             </div>
         </div>
+        <div id="view-calendar" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
+                <h2 class="text-xl font-bold text-gray-800">Event & Action Calendar</h2>
+                <div class="flex gap-2">
+                    <button onclick="changeCalMonth(-1)" class="bg-white border text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 font-bold">&larr; Prev</button>
+                    <span id="calendar-month-display" class="font-bold text-lg w-32 sm:w-40 text-center"></span>
+                    <button onclick="changeCalMonth(1)" class="bg-white border text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-50 font-bold">Next &rarr;</button>
+                </div>
+            </div>
+            
+            <div class="bg-white p-3 sm:p-5 rounded-lg shadow-sm border mb-10 w-full">
+                <div class="flex flex-col sm:flex-row gap-2 mb-4 p-3 bg-blue-50 rounded border border-blue-200 items-end">
+                    <div class="flex flex-col w-full sm:w-40 shrink-0">
+                        <label class="text-[10px] font-bold text-gray-700 uppercase">Date</label>
+                        <input type="date" id="cal-input-date" class="border rounded p-1.5 text-sm w-full">
+                    </div>
+                    <div class="flex flex-col w-full sm:w-48 shrink-0">
+                        <label class="text-[10px] font-bold text-gray-700 uppercase">Target (Ad Set or ALL)</label>
+                        <input type="text" id="cal-input-target" placeholder="ALL, US, MX1..." class="border rounded p-1.5 text-sm w-full uppercase">
+                    </div>
+                    <div class="flex flex-col flex-1 w-full">
+                        <label class="text-[10px] font-bold text-gray-700 uppercase">Action / Event Description</label>
+                        <input type="text" id="cal-input-text" placeholder="Duplicated adset, New video launched..." class="border rounded p-1.5 text-sm w-full" onkeypress="if(event.key === 'Enter') addCalendarEvent()">
+                    </div>
+                    <button onclick="addCalendarEvent()" class="bg-blue-600 text-white px-4 py-1.5 rounded font-bold hover:bg-blue-700 shadow w-full sm:w-auto shrink-0 mt-2 sm:mt-0 mb-[1px]">+ Log Event</button>
+                </div>
+
+                <div class="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs sm:text-sm font-bold text-gray-500 mb-2">
+                    <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1 sm:gap-2 auto-rows-fr">
+                    </div>
+            </div>
+        </div>
 <div id="view-diagnosis" class="hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <div class="flex flex-col">
@@ -573,24 +608,19 @@
     </div>
 
 <div id="region-modal" class="fixed inset-0 modal-bg hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl flex flex-col md:flex-row gap-6">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl flex flex-col md:flex-row gap-6">
             <div class="flex-1">
                 <h3 class="text-xl font-bold mb-1">Manage Regions</h3>
                 <p class="text-xs text-gray-500 mb-2">Aggregate Steam stats (e.g., <code>DACH = DE, AT, CH</code>)</p>
-                <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="EN6 = BE, IS, SK, CY, RO, MT, EE"></textarea>
+                <textarea id="region-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="EN6 = BE, IS, SK, CY, RO, MT, EE"></textarea>
             </div>
             <div class="flex-1">
                 <h3 class="text-xl font-bold mb-1">Batch Groups (Quick Select)</h3>
                 <p class="text-xs text-gray-500 mb-2">Create shortcuts for the filter dropdown.</p>
-                <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="Batch 1 = US, IE1, UK1, CAN1"></textarea>
-            </div>
-            <div class="flex-1">
-                <h3 class="text-xl font-bold mb-1">Event Calendar</h3>
-                <p class="text-xs text-gray-500 mb-2">Format: <code>YYYY-MM-DD | AdSet (or ALL) | Text</code></p>
-                <textarea id="event-text" class="w-full border rounded p-2 text-sm font-mono h-64" placeholder="2026-03-24 | ALL | End of Steam Sale&#10;2026-03-30 | US | Duplicated (New Pocket)"></textarea>
+                <textarea id="batch-text" class="w-full border rounded p-2 text-sm font-mono h-48" placeholder="Batch 1 = US, IE1, UK1, CAN1"></textarea>
             </div>
         </div>
-        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-4xl absolute mt-[350px] sm:mt-[300px]">
+        <div class="bg-gray-50 p-4 rounded-b-lg w-full max-w-2xl absolute mt-[285px] sm:mt-[250px]">
             <div class="flex flex-col-reverse sm:flex-row justify-end gap-2 w-full">
                 <button onclick="closeRegionModal()" class="w-full sm:w-auto px-4 py-2 text-gray-600 hover:bg-gray-100 rounded border sm:border-0">Cancel</button>
                 <button onclick="saveRegions()" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save & Reload</button>
@@ -746,24 +776,20 @@
         const csCountry = new CustomMultiSelect('cs-country');
         const csAdsets = new CustomMultiSelect('cs-adsets');
 
-// --- Region, Batch & Event Management ---
+// --- Region, Batch & Calendar Event Management ---
         let REGIONS = {};
         window.BATCH_GROUPS = {};
         let EVENT_CALENDAR = [];
 
         function loadRegions() {
-            // Master Defaults
             const defaultReg = "EN6 = BE, IS, SK, CY, RO, MT, EE\nOCEANIA1 = NZ, AU\nJPEN = JP\nKREN = KR\nUK1 = GB\nNO2 = NO, FI, DK\nIL1 = IL\nEN5 = AL, NZ, ZA, TR, AE, GR, CN, HR, BG, CZ, LT, HU, QA, LV\nCAN1 = CA\nIE1 = IE\nASIAExp = SG, HK, TW\nPT2 = PT\nBR1 = BR\nUS = US\nFR = FR\nIT = IT\nDE = DE\nES = ES\nALP1 = AT, CH\nMX1 = MX\nPL = PL";
             const defaultBatch = "Batch 1 = US, IE1, UK1, CAN1, OCEANIA1, IL1\nBatch 2 = EN6, NO2, EN5, FR, IT, PL, ALP1\nBatch 3 = BR1, MX1, ASIAExp, JPEN, KREN, PT2";
-            const defaultEvents = "2026-03-24 | ALL | End of Steam Sale";
             
             const savedReg = localStorage.getItem('wl-regions') || defaultReg;
             const savedBatch = localStorage.getItem('wl-batch') || defaultBatch;
-            const savedEvents = localStorage.getItem('wl-events') || defaultEvents;
             
             document.getElementById('region-text').value = savedReg;
             document.getElementById('batch-text').value = savedBatch;
-            document.getElementById('event-text').value = savedEvents;
             
             REGIONS = {}; 
             const allRegionNames = new Set();
@@ -773,6 +799,7 @@
                 const [regName, codes] = line.split('=');
                 const cleanRegName = regName.trim();
                 allRegionNames.add(cleanRegName.toUpperCase());
+
                 codes.split(',').forEach(c => {
                     const cleanCode = c.trim().toUpperCase();
                     if (!REGIONS[cleanCode]) REGIONS[cleanCode] = [];
@@ -790,12 +817,6 @@
                     return cleanItem.toUpperCase();
                 });
             });
-
-            EVENT_CALENDAR = [];
-            savedEvents.split('\n').forEach(line => {
-                const parts = line.split('|').map(p => p.trim());
-                if (parts.length === 3) EVENT_CALENDAR.push({ date: parts[0], target: parts[1].toUpperCase(), text: parts[2] });
-            });
         }
 
         function openRegionModal() { document.getElementById('region-modal').classList.remove('hidden'); }
@@ -803,10 +824,116 @@
         function saveRegions() { 
             localStorage.setItem('wl-regions', document.getElementById('region-text').value); 
             localStorage.setItem('wl-batch', document.getElementById('batch-text').value); 
-            localStorage.setItem('wl-events', document.getElementById('event-text').value); 
             closeRegionModal(); loadRegions(); refreshAllViews(); 
         }
+        
+        // --- CALENDAR LOGIC ---
+        let currentCalDate = new Date();
+
+        function loadCalendarEvents() {
+            let saved = localStorage.getItem('wl-events');
+            EVENT_CALENDAR = [];
+            if (saved) {
+                try {
+                    EVENT_CALENDAR = JSON.parse(saved); // Try to load as JSON array
+                } catch(e) {
+                    // Fallback to migrate the old raw text format
+                    saved.split('\n').forEach(line => {
+                        const parts = line.split('|').map(p => p.trim());
+                        if (parts.length === 3) EVENT_CALENDAR.push({ id: Date.now()+Math.random(), date: parts[0], target: parts[1].toUpperCase(), text: parts[2] });
+                    });
+                    saveCalendarEvents();
+                }
+            }
+            renderCalendar();
+        }
+
+        function saveCalendarEvents() {
+            localStorage.setItem('wl-events', JSON.stringify(EVENT_CALENDAR));
+            renderCalendar();
+            // Automatically update the AI Diagnosis view if it is open
+            if (typeof refreshAllViews === 'function' && !document.getElementById('view-diagnosis').classList.contains('hidden')) {
+                refreshAllViews(); 
+            }
+        }
+
+        function addCalendarEvent() {
+            const date = document.getElementById('cal-input-date').value;
+            const target = document.getElementById('cal-input-target').value.toUpperCase();
+            const text = document.getElementById('cal-input-text').value;
+
+            if(!date || !target || !text) return alert("Please fill all 3 fields.");
+
+            EVENT_CALENDAR.push({ id: Date.now() + Math.random(), date, target, text });
+            document.getElementById('cal-input-text').value = '';
+            saveCalendarEvents();
+        }
+
+        function deleteCalendarEvent(id) {
+            EVENT_CALENDAR = EVENT_CALENDAR.filter(e => e.id !== id);
+            saveCalendarEvents();
+        }
+
+        function changeCalMonth(dir) {
+            currentCalDate.setMonth(currentCalDate.getMonth() + dir);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const monthDisplay = document.getElementById('calendar-month-display');
+            grid.innerHTML = '';
+            
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthDisplay.innerText = `${monthNames[month]} ${year}`;
+            
+            // Adjust for Monday start (0=Sun, 1=Mon)
+            let offset = firstDay === 0 ? 6 : firstDay - 1; 
+            
+            // Blank leading days
+            for(let i=0; i<offset; i++) {
+                grid.innerHTML += `<div class="bg-gray-50 border border-gray-100 rounded min-h-[90px]"></div>`;
+            }
+            
+            // Today's date string for highlighting
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            for(let day=1; day<=daysInMonth; day++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const dayEvents = EVENT_CALENDAR.filter(e => e.date === dateStr);
+                
+                let evHtml = dayEvents.map(e => `
+                    <div class="bg-indigo-100 border border-indigo-200 text-indigo-900 text-[10px] p-1 rounded mb-1 flex justify-between group cursor-default shadow-sm transition hover:bg-indigo-200">
+                        <span class="truncate pr-1"><strong class="mr-1">${e.target}</strong>${e.text}</span>
+                        <button onclick="event.stopPropagation(); deleteCalendarEvent(${e.id})" class="hidden group-hover:block text-red-500 hover:text-red-700 font-bold shrink-0">&times;</button>
+                    </div>
+                `).join('');
+                
+                const isToday = todayStr === dateStr;
+                const bgClass = isToday ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-white border-gray-200 hover:bg-gray-50 transition';
+                const textClass = isToday ? 'text-blue-700' : 'text-gray-500';
+                
+                grid.innerHTML += `
+                    <div class="border rounded min-h-[90px] p-1.5 flex flex-col cursor-pointer ${bgClass}" onclick="document.getElementById('cal-input-date').value = '${dateStr}'; document.getElementById('cal-input-target').focus();">
+                        <span class="text-xs font-bold mb-1 ${textClass}">${day}</span>
+                        <div class="flex-1 flex flex-col overflow-y-auto no-scrollbar">
+                            ${evHtml}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize Settings & Calendar
         loadRegions();
+        loadCalendarEvents();
+        // Populate form default date to today
+        document.getElementById('cal-input-date').value = new Date().toISOString().split('T')[0];
 
         // --- Exclude Dates UI & Logic ---
         function loadExcludedDates() {
@@ -901,7 +1028,7 @@
 
         // --- UI Tabs ---
         function switchTab(tab) {
-            ['dashboard', 'roas', 'dow', 'funnel', 'sync', 'evolution', 'diagnosis'].forEach(t => {
+      ['dashboard', 'roas', 'dow', 'calendar', 'funnel', 'sync', 'evolution', 'diagnosis'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
                 if(btn) {
