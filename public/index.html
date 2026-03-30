@@ -2137,16 +2137,45 @@ let diagnosisDailyData = [];
                 d.cpc_trend = calcTrend(d.cpc, pCpc);
                 d.optin_trend = calcTrend(d.optin, pOptin);
 
-                // Assign Intelligent Status Flags
+// Assign Intelligent Status Flags based on 2026 Meta Ads Best Practices
                 const targetCps = parseFloat(document.getElementById('target-cps')?.value) || 2.0;
-                d.status = '🟢 Healthy';
+                const targetRoas = parseFloat(document.getElementById('target-roas')?.value) || 2.0;
                 
-                if (d.cps_3d_avg > targetCps && d.spend > 0) {
-                    d.status = '🔴 Critical'; // Cost is spiraling
-                } else if (d.optin_trend <= -15 && d.spend > 0) {
-                    d.status = '🟠 Bleeding'; // Funnel conversion dropped heavily
-                } else if (d.ctr_trend <= -10 && d.cpc_trend >= 10 && d.spend > 0) {
-                    d.status = '🟡 Fatigued'; // Ads are getting ignored and expensive
+                // Ignore micro-spend days from triggering false panics
+                const meaningfulSpend = d.spend >= 1.0; 
+                
+                const isProfitable = d.roas >= targetRoas;
+                const isFatigued = d.ctr_trend <= -15 && d.cpc_trend >= 15;
+                const isBleeding = d.optin_trend <= -25;
+                const isHighCost = d.cps_3d_avg > (targetCps * 1.5);
+                const isGoodCost = d.cps_3d_avg > 0 && d.cps_3d_avg <= targetCps;
+
+                // --- NEW: "BAD POCKET" ESCAPE LOGIC ---
+                // 1. Violent CPM Spike: Meta forced you into an expensive auction, but CTR isn't dead.
+                const isCpmSpike = d.cpm_trend >= 50 && d.ctr >= 2.0; 
+                
+                // 2. High CTR / Zero Buyer Trap: Ads are getting clicks, but wrong pocket of users.
+                const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
+
+                if (isProfitable) {
+                    d.status = isFatigued ? '🟡 Profitable (Fatigue Warning)' : '🟢 Highly Profitable';
+                } else if (meaningfulSpend && isCpmSpike) {
+                    d.status = '🟣 Duplicate (CPM Spike)';
+                } else if (meaningfulSpend && isHighCtrZeroSubs) {
+                    d.status = '🟣 Duplicate (High CTR/No Subs)';
+                } else if (meaningfulSpend && d.subs === 0 && d.roas === 0) {
+                    // If CTR is also terrible, the creative is truly dead.
+                    d.status = d.ctr < 2.0 ? '🔴 Dead (Renew Ads)' : '🔴 Critical (Zero Conversions)';
+                } else if (meaningfulSpend && isHighCost && d.roas < 1.0) {
+                    d.status = '🔴 Critical (High Cost)';
+                } else if (meaningfulSpend && isFatigued) {
+                    d.status = isGoodCost ? '🟢 Healthy (Fatigue Starting)' : '🟡 Fatigued (Renew Ads)';
+                } else if (meaningfulSpend && isBleeding) {
+                    d.status = isGoodCost ? '🟢 Healthy (Opt-ins Dropping)' : '🟠 Bleeding (Fix Landing/Offer)';
+                } else if (isGoodCost || (!meaningfulSpend && (d.roas > 0 || d.subs > 0))) {
+                    d.status = '🟢 Healthy';
+                } else {
+                    d.status = '🟡 Monitor';
                 }
 
                 return d;
