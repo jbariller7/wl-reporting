@@ -2176,19 +2176,19 @@ let diagnosisDailyData = [];
                 const isHighCtrZeroSubs = d.ctr >= 3.5 && d.subs === 0;
 
                 if (isProfitable) {
-                    d.status = isFatigued ? '🟡 Profitable (Fatigue Warning)' : '🟢 Highly Profitable';
+                    d.status = isFatigued ? '🟡 Profitable\n(Fatigue Warning)' : '🟢 Highly\nProfitable';
                 } else if (meaningfulSpend && isCpmSpike) {
-                    d.status = '🟣 Duplicate (CPM Spike)';
+                    d.status = '🟣 Duplicate\n(CPM Spike)';
                 } else if (meaningfulSpend && isHighCtrZeroSubs) {
-                    d.status = '🟣 Duplicate (High CTR/No Subs)';
+                    d.status = '🟣 Duplicate\n(High CTR/No Subs)';
                 } else if (meaningfulSpend && d.subs === 0 && d.roas === 0) {
                     d.status = d.ctr < 2.0 ? '🔴 Dead (Renew Ads)' : '🔴 Critical (Zero Conversions)';
                 } else if (meaningfulSpend && isHighCost && d.roas < 1.0) {
-                    d.status = '🔴 Critical (High Cost)';
+                    d.status = '🔴 Critical\n(High Cost)';
                 } else if (meaningfulSpend && isFatigued) {
-                    d.status = isGoodCost ? '🟢 Healthy (Fatigue Starting)' : '🟡 Fatigued (Renew Ads)';
+                    d.status = isGoodCost ? '🟢 Healthy\n(Fatigue Starting)' : '🟡\nFatigued (Renew Ads)';
                 } else if (meaningfulSpend && isBleeding) {
-                    d.status = isGoodCost ? '🟢 Healthy (Opt-ins Dropping)' : '🟠 Bleeding (Fix Landing/Offer)';
+                    d.status = isGoodCost ? '🟢 Healthy\n(Opt-ins Dropping)' : '🟠\nBleeding (Fix Landing/Offer)';
                 } else if (isGoodCost || (!meaningfulSpend && (d.roas > 0 || d.subs > 0))) {
                     d.status = '🟢 Healthy';
                 } else {
