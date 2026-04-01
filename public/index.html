@@ -1269,7 +1269,7 @@ let globalDashboardState = {};
 
                 let html = '';
 
-                if (window.globalDashMetrics) {
+                 if (window.globalDashMetrics) {
                     const g = window.globalDashMetrics;
                     html += `
                         <tr class="border-b-2 border-gray-400 bg-gray-100 font-bold">
@@ -1278,6 +1278,9 @@ let globalDashboardState = {};
                             <td class="p-2 sm:p-3 text-right">€${g.net.toFixed(2)}</td>
                             <td class="p-2 sm:p-3 text-right">${g.subs}</td>
                             <td class="p-2 sm:p-3 text-right">€${g.cps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-purple-600">${g.demoStarts || 0}</td>
+                            <td class="p-2 sm:p-3 text-right text-purple-800">€${(g.costPerDemo || 0).toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-purple-600">${(g.demoFinishRate || 0).toFixed(1)}%</td>
                             <td class="p-2 sm:p-3 text-right">${g.roas.toFixed(2)}x</td>
                             <td class="p-2 sm:p-3 text-right">€${g.cpm.toFixed(2)}</td>
                             <td class="p-2 sm:p-3 text-right">€${g.cpc.toFixed(2)}</td>
