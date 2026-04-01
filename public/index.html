@@ -146,6 +146,9 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'net')">Net Revenue ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'subs')">Subscribers ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoFinishRate')">Finish % ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'roas')">ROAS ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cpm')">CPM ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cpc')">CPC ↕</th>
@@ -168,8 +171,11 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'spend')">Ad Spend ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'net')">Net Revenue ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'subs')">Subscribers ↕</th>
-                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'cps')">Cost / Sub ↕</th>
-                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'roas')">ROAS ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoFinishRate')">Finish % ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'roas')">ROAS ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'cpm')">CPM ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'cpc')">CPC ↕</th>
                             </tr>
@@ -1165,6 +1171,15 @@ let globalDashboardState = {};
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country, 'paypal'));
 
+            let totalDemoStarts = 0, totalDemoFinishes = 0;
+            if (raw.telemetry) {
+                raw.telemetry.forEach(r => {
+                    const dateVal = r.timestamp || r.date || r.created_at;
+                    if (r.stageId == '1') { addMetric(dateVal, 'demoStarts', 1, r.country, 'telemetry'); totalDemoStarts++; }
+                    if (r.stageId == '7') { addMetric(dateVal, 'demoFinishes', 1, r.country, 'telemetry'); totalDemoFinishes++; }
+                });
+            }
+
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
             document.getElementById('kpi-net-breakdown').innerText = `Steam: €${totalSteamNet.toFixed(2)} | Stripe/PP: €${totalOtherNet.toFixed(2)}`;
@@ -1187,13 +1202,22 @@ let globalDashboardState = {};
             document.getElementById('kpi-cps').innerText = totalSubs > 0 ? `€${(totalSpend / totalSubs).toFixed(2)}` : '€0.00';
             document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : '0.00x';
 
-            const calcMetrics = (c) => {
+           const calcMetrics = (c) => {
                 c.cps = c.subs > 0 ? c.spend / c.subs : 0;
                 c.roas = c.spend > 0 ? c.net / c.spend : 0;
                 c.cpm = c.imp > 0 ? (c.spend / c.imp) * 1000 : 0;
                 c.cpc = c.clicks > 0 ? c.spend / c.clicks : 0;
+                c.demoStarts = c.demoStarts || 0;
+                c.demoFinishes = c.demoFinishes || 0;
+                c.costPerDemo = c.demoStarts > 0 ? c.spend / c.demoStarts : 0;
+                c.demoFinishRate = c.demoStarts > 0 ? (c.demoFinishes / c.demoStarts) * 100 : 0;
                 return c;
             };
+
+            dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
+            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
+            
+            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
 
             dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
             dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
@@ -1268,6 +1292,9 @@ let globalDashboardState = {};
                         <td class="p-2 sm:p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
                         <td class="p-2 sm:p-3 text-right text-blue-600 font-bold">${c.subs}</td>
                         <td class="p-2 sm:p-3 text-right text-gray-800 font-medium" style="background-color: ${c.subs > 0 ? getRankColor(c.cps, sCps, false) : 'transparent'}">€${c.cps.toFixed(2)}</td>
+                        <td class="p-2 sm:p-3 text-right text-purple-600 font-bold">${c.demoStarts}</td>
+                        <td class="p-2 sm:p-3 text-right text-purple-800 font-medium">€${c.costPerDemo.toFixed(2)}</td>
+                        <td class="p-2 sm:p-3 text-right text-purple-600 font-medium">${c.demoFinishRate.toFixed(1)}%</td>
                         <td class="p-2 sm:p-3 text-right text-gray-800 font-bold" style="background-color: ${getRankColor(c.roas, sRoas, true)}">${c.roas.toFixed(2)}x</td>
                         <td class="p-2 sm:p-3 text-right text-gray-600 text-xs" style="background-color: ${c.imp > 0 ? getRankColor(c.cpm, sCpm, false) : 'transparent'}">€${c.cpm.toFixed(2)}</td>
                         <td class="p-2 sm:p-3 text-right text-gray-600 text-xs" style="background-color: ${c.clicks > 0 ? getRankColor(c.cpc, sCpc, false) : 'transparent'}">€${c.cpc.toFixed(2)}</td>
@@ -2195,7 +2222,13 @@ let diagnosisDailyData = [];
                 }
             });
             raw.paypal.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-
+           if (raw.telemetry) {
+                raw.telemetry.forEach(r => {
+                    const dateVal = r.timestamp || r.date || r.created_at;
+                    if (r.stageId == '1') addAllTime(dateVal, 'demoStarts', 1, r.country);
+                    if (r.stageId == '7') addAllTime(dateVal, 'demoFinishes', 1, r.country);
+                });
+            }
             const addMetric = (date, metric, val, countryCode) => {
                 if (!date || isNaN(val)) return;
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
@@ -2241,7 +2274,13 @@ let diagnosisDailyData = [];
                 }
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-
+           if (raw.telemetry) {
+                raw.telemetry.forEach(r => {
+                    const dateVal = r.timestamp || r.date || r.created_at;
+                    if (r.stageId == '1') addMetric(dateVal, 'demoStarts', 1, r.country);
+                    if (r.stageId == '7') addMetric(dateVal, 'demoFinishes', 1, r.country);
+                });
+            }
             diagnosisDailyData = Object.values(dailyAgg).map(d => {
                 d.cpm = d.imp > 0 ? (d.spend / d.imp) * 1000 : 0;
                 d.cpc = d.clicks > 0 ? d.spend / d.clicks : 0;
@@ -2250,7 +2289,10 @@ let diagnosisDailyData = [];
                 d.cps = d.subs > 0 ? (d.spend / d.subs) : (d.spend > 0 ? Infinity : 0);
                 d.revps = d.subs > 0 ? (d.net / d.subs) : 0;
                 d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
-
+                d.demoStarts = d.demoStarts || 0;
+                d.demoFinishes = d.demoFinishes || 0;
+                d.costPerDemo = d.demoStarts > 0 ? d.spend / d.demoStarts : 0;
+                d.demoFinishRate = d.demoStarts > 0 ? (d.demoFinishes / d.demoStarts) * 100 : 0;
                 // Load Events for this row
                 d.events = EVENT_CALENDAR.filter(e => e.date === d.date && (e.target === 'ALL' || e.target === d.groupKey)).map(e => e.text).join('; ');
 
@@ -2362,6 +2404,9 @@ let diagnosisDailyData = [];
                     <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
                     <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
                     <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-purple-700">Demo Starts</th>
+<th class="p-2 sm:p-3 text-right font-bold text-purple-700">Cost/Demo</th>
+<th class="p-2 sm:p-3 text-right font-bold text-purple-700">Demo Finish %</th>
                 </tr>
             `;
 
