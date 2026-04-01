@@ -569,6 +569,7 @@
                     <button onclick="triggerUpdate('fetch-tiktok')" class="bg-black text-white py-2 rounded hover:bg-gray-800 transition">TikTok Ads</button>
                     <button onclick="triggerUpdate('fetch-mailerlite')" class="bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">MailerLite</button>
                     <button onclick="triggerUpdate('fetch-steam-sales')" class="bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">Steam</button>
+                    <button onclick="triggerUpdate('fetch-telemetry')" class="bg-teal-600 text-white py-2 rounded hover:bg-teal-700 transition">Telemetry</button>
                 </div>
             </div>
             <h3 class="font-bold text-gray-700 mb-2">Terminal Output</h3>
@@ -614,10 +615,10 @@
                 });
             });
 
-            const [meta, steam, stripe, paypal, mailerlite] = await Promise.all([
-                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite')
+            const [meta, steam, stripe, paypal, mailerlite, telemetry] = await Promise.all([
+                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite'), fetchSheet('Telemetry')
             ]);
-            GLOBAL_RAW_DATA = { meta, steam, stripe, paypal, mailerlite };
+            GLOBAL_RAW_DATA = { meta, steam, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
