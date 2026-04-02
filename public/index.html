@@ -1129,17 +1129,17 @@ let globalDashboardState = {};
                 }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
-                    if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0 };
-                    dailyData[d][metric] += val;
-                    
-                    if (!countryAgg[cCode]) countryAgg[cCode] = { name: getCountryName(cCode) + ` <span class="text-xs text-gray-400 ml-1">(${cCode})</span>`, sortName: getCountryName(cCode), spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
-                    countryAgg[cCode][metric] += val;
+                   if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0, demoStarts: 0, demoFinishes: 0 };
+dailyData[d][metric] = (dailyData[d][metric] || 0) + val;
 
-                    const regs = regionNames.length > 0 ? regionNames : ['Other'];
-                    regs.forEach(reg => {
-                        if (!regionAgg[reg]) regionAgg[reg] = { name: reg, sortName: reg, spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
-                        regionAgg[reg][metric] += val;
-                    });
+if (!countryAgg[cCode]) countryAgg[cCode] = { name: getCountryName(cCode) + ` <span class="text-xs text-gray-400 ml-1">(${cCode})</span>`, sortName: getCountryName(cCode), spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+countryAgg[cCode][metric] = (countryAgg[cCode][metric] || 0) + val;
+
+const regs = regionNames.length > 0 ? regionNames : ['Other'];
+regs.forEach(reg => {
+    if (!regionAgg[reg]) regionAgg[reg] = { name: reg, sortName: reg, spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+    regionAgg[reg][metric] = (regionAgg[reg][metric] || 0) + val;
+});
                     
                     if (metric === 'spend') totalSpend += val;
                     if (metric === 'net') {
@@ -1228,15 +1228,10 @@ let globalDashboardState = {};
                 return c;
             };
 
-            dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
+           dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
             dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
             
             window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
-
-            dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
-            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0);
-            
-            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, imp: totalImp, clicks: totalClicks });
             
             renderDashTables();
 
@@ -2208,8 +2203,8 @@ let diagnosisDailyData = [];
                 if (!date || isNaN(val)) return;
                 const { keys } = getKeysToUpdate(date, (cCode || 'UNKNOWN').toUpperCase());
                 keys.forEach(({ key }) => {
-                    if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
-                    allTimeAgg[key][metric] += val;
+                    if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
+                    allTimeAgg[key][metric] = (allTimeAgg[key][metric] || 0) + val;
                 });
             };
 
@@ -2260,8 +2255,8 @@ let diagnosisDailyData = [];
                 if (!isFilteredIn) return;
 
                 keys.forEach(({ key, groupKey, region, country }) => {
-                    if (!dailyAgg[key]) dailyAgg[key] = { date: d, groupKey, country, region, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0 };
-                    dailyAgg[key][metric] += val;
+                    if (!dailyAgg[key]) dailyAgg[key] = { date: d, groupKey, country, region, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
+                    dailyAgg[key][metric] = (dailyAgg[key][metric] || 0) + val;
                 });
             };
 
@@ -2455,6 +2450,9 @@ let diagnosisDailyData = [];
                         ${d.roas.toFixed(2)}x<br>
                         <span class="text-[10px] font-medium text-gray-500">${d.roas_3d_avg.toFixed(2)}x</span>
                     </td>
+                    <td class="p-1.5 sm:p-2 text-right text-purple-600 font-bold">${d.demoStarts}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-purple-800 font-medium">€${d.costPerDemo.toFixed(2)}</td>
+                    <td class="p-1.5 sm:p-2 text-right text-purple-600 font-medium">${d.demoFinishRate.toFixed(1)}%</td>
                 </tr>
             `).join('');
         }
