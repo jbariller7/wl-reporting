@@ -1034,6 +1034,20 @@ let globalDashboardState = {};
             const raw = await fetchAllSheets();
             if(!raw) { btn.innerText = originalText; btn.disabled = false; return; }
 
+            // ---> ADD THIS BLOCK TO EXCLUDE REDDIT ORGANIC SUBS <---
+            raw.mailerlite = raw.mailerlite.filter(r => {
+                try {
+                    // Parse the raw JSON string stored in the sheet
+                    const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
+                    // Safely extract the utm_source and make it lowercase
+                    const utmSource = (rawObj.fields?.utm_source || '').toLowerCase();
+                    // Keep the row ONLY if it does not contain 'reddit'
+                    return !utmSource.includes('reddit');
+                } catch(e) {
+                    return true; // Keep row if parsing fails just in case
+                }
+            });
+   
             populateDropdowns(raw);
 
             globalDashboardState.startDate = document.getElementById('dash-start').value || "2000-01-01";
