@@ -489,6 +489,8 @@
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="net" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Rev</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="profit" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Profit</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="subs" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Subscribers</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="demoStarts" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Demo Starts</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="costPerDemo" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Demo</label>
                 </div>
                 
                 <div class="w-full overflow-hidden">
@@ -1790,7 +1792,7 @@ let isFilteredIn = false;
             const allDates = new Set();
 
             const initDay = (obj, d) => {
-                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
+                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
             };
 
             const addMetric = (date, metric, val, countryCode) => {
@@ -1850,20 +1852,31 @@ let isFilteredIn = false;
                     addMetric(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
                 }
             });
-            raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-let sortedDates = Array.from(allDates).sort();
+           raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
+            
+            if (raw.telemetry) {
+                raw.telemetry.forEach(r => {
+                    const dateVal = r.timestamp || r.date || r.created_at;
+                    if (r.stageId == '1') addMetric(dateVal, 'demoStarts', 1, r.country);
+                    if (r.stageId == '7') addMetric(dateVal, 'demoFinishes', 1, r.country);
+                });
+            }
+
+            let sortedDates = Array.from(allDates).sort();
 
             const getMetrics = (dataObj, date) => {
-                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0 };
+                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
                 const roas = day.spend > 0 ? day.net / day.spend : 0;
                 return {
                     spend: day.spend,
                     net: day.net,
                     profit: day.net - day.spend,
                     subs: day.subs,
+                    demoStarts: day.demoStarts || 0,
                     roas: roas,
                     inv_roas: roas > 0 ? 1 / roas : 0,
                     cps: day.subs > 0 ? day.spend / day.subs : 0,
+                    costPerDemo: day.demoStarts > 0 ? day.spend / day.demoStarts : 0,
                     cpm: day.imp > 0 ? (day.spend / day.imp) * 1000 : 0,
                     cpc: day.clicks > 0 ? day.spend / day.clicks : 0
                 };
@@ -1993,11 +2006,13 @@ function renderCustomChart() {
             
             const labelsMap = {
                 spend: 'Ad Spend', roas: 'ROAS', inv_roas: 'Inverted ROAS', 
-                cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', profit: 'Net Profit', subs: 'Subscribers'
+                cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', profit: 'Net Profit', subs: 'Subscribers',
+                demoStarts: 'Demo Starts', costPerDemo: 'Cost/Demo'
             };
             const colorsMap = {
                 spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
-                cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9'
+                cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9',
+                demoStarts: '#8b5cf6', costPerDemo: '#f97316'
             };
 const datasets = selectedMetrics.map(key => {
                 const rawData = customChartDataCache[key] || [];
@@ -2043,9 +2058,9 @@ const datasets = selectedMetrics.map(key => {
                                     
                                     // Format the tooltip string cleanly
                                     let formattedVal = rawVal.toFixed(2);
-                                    if (key === 'subs') formattedVal = Math.round(rawVal);
+                                    if (key === 'subs' || key === 'demoStarts') formattedVal = Math.round(rawVal);
                                     if (key === 'roas' || key === 'inv_roas') formattedVal += 'x';
-                                    else if (key !== 'subs') formattedVal = '€' + formattedVal;
+                                    else if (key !== 'subs' && key !== 'demoStarts') formattedVal = '€' + formattedVal;
 
                                     return `${context.dataset.label}: ${formattedVal} (Index: ${context.parsed.y.toFixed(0)}%)`;
                                 }
