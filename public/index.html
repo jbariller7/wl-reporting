@@ -1785,8 +1785,7 @@ let isFilteredIn = false;
             const variance = arr.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / arr.length;
             return { mean, std: Math.sqrt(variance) };
         }
-
-      function loadEvolutionData(raw) {
+function loadEvolutionData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
             const timeframe = document.getElementById('evo-timeframe')?.value || 'daily';
 
@@ -1885,60 +1884,7 @@ let isFilteredIn = false;
                 };
             };
 
-            raw.meta.forEach(r => {
-                if (!excludeAdsets.includes(r.adset_name || '')) {
-                    addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country);
-                    addMetric(r.date, 'imp', parseInt(r.impressions || 0), r.country);
-                    addMetric(r.date, 'clicks', parseInt(r.clicks || 0), r.country);
-                }
-            });
-            raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
-            raw.stripe.forEach(r => {
-                if (r.status !== 'unpaid') {
-                    let stripeNetEur = 0;
-                    try {
-                        const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
-                        const bt = rawObj?.payment_intent?.latest_charge?.balance_transaction;
-                        if (bt && bt.net) stripeNetEur = bt.net / 100;
-                    } catch (e) {}
-                    if (!stripeNetEur) {
-                        const curr = (r.currency || 'eur').toLowerCase();
-                        const amt = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(curr) ? parseFloat(r.amount || 0) : (parseFloat(r.amount || 0) / 100);
-                        stripeNetEur = toEur(amt, curr) * 0.95; 
-                    }
-                    addMetric(r.created_at, 'net', stripeNetEur * (1 - TAX_RATE), r.country);
-                }
-            });
-           raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country));
-            
-            if (raw.telemetry) {
-                raw.telemetry.forEach(r => {
-                    const dateVal = r.timestamp || r.date || r.created_at;
-                    if (r.stageId == '1') addMetric(dateVal, 'demoStarts', 1, r.country);
-                    if (r.stageId == '7') addMetric(dateVal, 'demoFinishes', 1, r.country);
-                });
-            }
-
-            let sortedDates = Array.from(allDates).sort();
-
-            const getMetrics = (dataObj, date) => {
-                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
-                const roas = day.spend > 0 ? day.net / day.spend : 0;
-                return {
-                    spend: day.spend,
-                    net: day.net,
-                    profit: day.net - day.spend,
-                    subs: day.subs,
-                    demoStarts: day.demoStarts || 0,
-                    roas: roas,
-                    inv_roas: roas > 0 ? 1 / roas : 0,
-                    cps: day.subs > 0 ? day.spend / day.subs : 0,
-                    costPerDemo: day.demoStarts > 0 ? day.spend / day.demoStarts : 0,
-                    cpm: day.imp > 0 ? (day.spend / day.imp) * 1000 : 0,
-                    cpc: day.clicks > 0 ? day.spend / day.clicks : 0
-                };
-            };
+   // OUTLIER REMOVAL LOGIC (Removes any days > 3 StdDevs above the mean, AND drops 0s)
 
    // OUTLIER REMOVAL LOGIC (Removes any days > 3 StdDevs above the mean, AND drops 0s)
             const removeOutliers = document.getElementById('evo-remove-outliers')?.checked;
