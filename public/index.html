@@ -441,10 +441,19 @@
         </div>
         <div id="view-evolution" class="hidden">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
-                <h2 class="text-xl font-bold text-gray-800">Daily Evolution</h2>
-                <div class="flex items-center bg-white p-2 rounded shadow-sm border border-gray-300">
-                    <input type="checkbox" id="evo-remove-outliers" class="w-4 h-4 text-blue-600 cursor-pointer" onchange="refreshAllViews()">
-                    <label for="evo-remove-outliers" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">Remove Outliers (Flatten Spikes)</label>
+                <h2 class="text-xl font-bold text-gray-800">Evolution Tracker</h2>
+                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <div class="flex items-center gap-2 bg-white p-2 rounded shadow-sm border w-full sm:w-auto justify-between sm:justify-start">
+                        <label class="text-sm font-bold text-gray-700">Grouping:</label>
+                        <select id="evo-timeframe" class="border rounded p-1 text-sm bg-gray-50 flex-1 sm:flex-none" onchange="refreshAllViews()">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly (Mon-Sun)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center bg-white p-2 rounded shadow-sm border border-gray-300 w-full sm:w-auto">
+                        <input type="checkbox" id="evo-remove-outliers" class="w-4 h-4 text-blue-600 cursor-pointer" onchange="refreshAllViews()">
+                        <label for="evo-remove-outliers" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">Remove Outliers</label>
+                    </div>
                 </div>
             </div>
             <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
@@ -1772,8 +1781,9 @@ let isFilteredIn = false;
             return { mean, std: Math.sqrt(variance) };
         }
 
-        function loadEvolutionData(raw) {
+      function loadEvolutionData(raw) {
             const { startDate, endDate, filterSelection, excludeAdsets, excludedRanges } = globalDashboardState;
+            const timeframe = document.getElementById('evo-timeframe')?.value || 'daily';
 
             const dailySelected = {};
             const dailyGlobal = {};
@@ -1788,14 +1798,16 @@ let isFilteredIn = false;
                 const d = normalizeDate(date);
                 if (d < startDate || d > endDate || isDateExcluded(d, excludedRanges)) return;
                 
+                const periodKey = timeframe === 'weekly' ? getMonday(d) : d;
+                
                 const cCode = (countryCode || 'UNKNOWN').toUpperCase();
                 const regionNames = REGIONS[cCode] || [];
 
-                allDates.add(d);
+                allDates.add(periodKey);
                 
                 // 1. Always add to Global (Unfiltered baseline)
-                initDay(dailyGlobal, d);
-                dailyGlobal[d][metric] += val;
+                initDay(dailyGlobal, periodKey);
+                dailyGlobal[periodKey][metric] += val;
 
                 // 2. Check if it matches user's active filter
                 let isFilteredIn = false;
@@ -1890,7 +1902,7 @@ let sortedDates = Array.from(allDates).sort();
                 return new Chart(document.getElementById(ctxId).getContext('2d'), config);
             };
 
-          let locName = 'Custom Filter';
+         let locName = 'Custom Filter';
             if (filterSelection.includes('ALL') || filterSelection.length === 0) {
                 locName = 'All Locations';
             } else if (filterSelection.length === 1) {
@@ -1898,7 +1910,9 @@ let sortedDates = Array.from(allDates).sort();
             } else {
                 locName = filterSelection.length + ' Locations Selected';
             }
-            customChartDates = sortedDates;
+            
+            const chartLabels = sortedDates.map(d => timeframe === 'weekly' ? 'Wk: ' + d : d);
+            customChartDates = chartLabels;
 
             // Cache data for the Custom Chart
             customChartDataCache = {
@@ -1917,7 +1931,7 @@ let sortedDates = Array.from(allDates).sort();
             evoSpendChart = buildChart('evoSpendChart', evoSpendChart, {
                 type: 'bar',
                 data: {
-                    labels: sortedDates,
+                    labels: chartLabels,
                     datasets: [{ label: `Ad Spend (€) - ${locName}`, data: customChartDataCache.spend, backgroundColor: 'rgba(248, 113, 113, 0.8)' }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Ad Spend (€)' } } }
@@ -1927,7 +1941,7 @@ let sortedDates = Array.from(allDates).sort();
             evoRoasChart = buildChart('evoRoasChart', evoRoasChart, {
                 type: 'line',
                 data: {
-                    labels: sortedDates,
+                    labels: chartLabels,
                     datasets: [
                         { label: `ROAS (x) - ${locName}`, data: customChartDataCache.roas, borderColor: '#a855f7', backgroundColor: '#a855f7', tension: 0.2 },
                         { label: 'Global Avg', data: mapData('roas', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
@@ -1940,7 +1954,7 @@ let sortedDates = Array.from(allDates).sort();
             evoCpsChart = buildChart('evoCpsChart', evoCpsChart, {
                 type: 'line',
                 data: {
-                    labels: sortedDates,
+                    labels: chartLabels,
                     datasets: [
                         { label: `Cost/Sub (€) - ${locName}`, data: customChartDataCache.cps, borderColor: '#eab308', backgroundColor: '#eab308', tension: 0.2 },
                         { label: 'Global Avg', data: mapData('cps', true), borderColor: '#9ca3af', borderDash: [5, 5], tension: 0.2, pointRadius: 0 }
@@ -1953,7 +1967,7 @@ let sortedDates = Array.from(allDates).sort();
             evoCpmCpcChart = buildChart('evoCpmCpcChart', evoCpmCpcChart, {
                 type: 'line',
                 data: {
-                    labels: sortedDates,
+                    labels: chartLabels,
                     datasets: [
                         { label: `CPM - ${locName}`, data: customChartDataCache.cpm, borderColor: '#3b82f6', backgroundColor: '#3b82f6', yAxisID: 'y', tension: 0.2 },
                         { label: 'CPM Global', data: mapData('cpm', true), borderColor: '#9ca3af', borderDash: [5, 5], pointRadius: 0, yAxisID: 'y', tension: 0.2 },
