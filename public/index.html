@@ -1120,7 +1120,7 @@ let globalDashboardState = {};
         let dashSort = { country: { col: 'roas', desc: true }, region: { col: 'roas', desc: true } };
 
         function loadDashboardData(raw) {
-            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalOtherNet = 0, totalSubs = 0, totalImp = 0, totalClicks = 0;
+            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalOtherNet = 0, totalSubs = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const regionAgg = {};
@@ -1155,7 +1155,7 @@ regs.forEach(reg => {
     regionAgg[reg][metric] = (regionAgg[reg][metric] || 0) + val;
 });
                     
-                    if (metric === 'spend') totalSpend += val;
+                  if (metric === 'spend') totalSpend += val;
                     if (metric === 'net') {
                         totalNet += val;
                         if (source === 'steam') totalSteamNet += val;
@@ -1164,6 +1164,8 @@ regs.forEach(reg => {
                     if (metric === 'subs') totalSubs += val;
                     if (metric === 'imp') totalImp += val;
                     if (metric === 'clicks') totalClicks += val;
+                    if (metric === 'demoStarts') totalDemoStarts += val;
+                    if (metric === 'demoFinishes') totalDemoFinishes += val;
                 }
             };
 
@@ -1199,12 +1201,11 @@ regs.forEach(reg => {
             });
             raw.paypal.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.amout || r.amount || 0), r.currency) * (1 - TAX_RATE), r.country, 'paypal'));
 
-            let totalDemoStarts = 0, totalDemoFinishes = 0;
             if (raw.telemetry) {
                 raw.telemetry.forEach(r => {
                     const dateVal = r.timestamp || r.date || r.created_at;
-                    if (r.stageId == '1') { addMetric(dateVal, 'demoStarts', 1, r.country, 'telemetry'); totalDemoStarts++; }
-                    if (r.stageId == '7') { addMetric(dateVal, 'demoFinishes', 1, r.country, 'telemetry'); totalDemoFinishes++; }
+                    if (r.stageId == '1') { addMetric(dateVal, 'demoStarts', 1, r.country, 'telemetry'); }
+                    if (r.stageId == '7') { addMetric(dateVal, 'demoFinishes', 1, r.country, 'telemetry'); }
                 });
             }
 
