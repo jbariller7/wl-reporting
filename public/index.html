@@ -1048,15 +1048,21 @@ let globalDashboardState = {};
             const raw = await fetchAllSheets();
             if(!raw) { btn.innerText = originalText; btn.disabled = false; return; }
 
-            // ---> ADD THIS BLOCK TO EXCLUDE REDDIT ORGANIC SUBS <---
             raw.mailerlite = raw.mailerlite.filter(r => {
                 try {
                     // Parse the raw JSON string stored in the sheet
                     const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
-                    // Safely extract the utm_source and make it lowercase
+                    
+                    // Exclude Reddit
                     const utmSource = (rawObj.fields?.utm_source || '').toLowerCase();
-                    // Keep the row ONLY if it does not contain 'reddit'
-                    return !utmSource.includes('reddit');
+                    const isReddit = utmSource.includes('reddit');
+                    
+                    // Exclude "PDF Content only" group (MailerLite stores this in the groups array)
+                    const groups = rawObj.groups || [];
+                    const isPdfOnly = groups.some(g => g.name === 'PDF Content only' || g.name === 'PDF content only');
+                    
+                    // Keep the row ONLY if it's not Reddit AND not in the PDF group
+                    return !isReddit && !isPdfOnly;
                 } catch(e) {
                     return true; // Keep row if parsing fails just in case
                 }
@@ -2507,11 +2513,11 @@ let diagnosisDailyData = [];
             let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data with 3-Day Trends. Diagnose the issues:\n\n`;
             
             if (currentDiagnosisView === 'adset') {
-                output += `| Date | Ad Set / Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
-                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-            } else {
-                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) |\n`;
+                output += `| Date | Ad Set / Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) | Demo Starts |\n`;
                 output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+            } else {
+                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) | Demo Starts |\n`;
+                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             }
             
             diagnosisDailyData.forEach(d => {
@@ -2521,9 +2527,9 @@ let diagnosisDailyData = [];
                 const cleanEvents = d.events || '-';
 
                 if (currentDiagnosisView === 'adset') {
-                    output += `| ${d.date} | ${d.groupKey} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                    output += `| ${d.date} | ${d.groupKey} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
                 } else {
-                    output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) |\n`;
+                    output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
                 }
             });
 
