@@ -12,7 +12,7 @@ test("every revenue dashboard consumes Google Play data", () => {
   assert.match(html, /Google Play: €\$\{totalGooglePlayNet\.toFixed\(2\)\}/);
 
   const aggregationCalls = html.match(/forEachGooglePlayRevenue\(raw, \(/g) || [];
-  assert.equal(aggregationCalls.length, 7, "main, funnel, ROAS, day-of-week, evolution, and both diagnosis aggregations must include Google Play");
+  assert.equal(aggregationCalls.length, 8, "main, funnel, ROAS, day-of-week, evolution, optimizer, and both diagnosis aggregations must include Google Play");
 });
 
 test("dashboard derives revenue from the native Google Play schema", async () => {
