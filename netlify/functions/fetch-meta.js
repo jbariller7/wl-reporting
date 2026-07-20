@@ -7,6 +7,7 @@ export const handler = async (event) => {
   const range = parseRange(body);
   range.forceRefresh = body.forceRefresh === true;
   range.includeConfiguration = body.includeConfiguration !== false;
+  range.syncPart = body.syncPart || "all";
   const res = await etlMeta(range);
   return ok(res);
 };

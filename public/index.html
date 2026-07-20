@@ -2869,23 +2869,38 @@ let diagnosisDailyData = [];
         }
 
         async function runMetaSync(since, until, forceRefresh) {
-            const chunks = WLDataSync.buildDateChunks(since, until, 7);
+            const chunks = WLDataSync.buildDateChunks(since, until, 3);
             let totalRows = 0;
-            if (chunks.length > 1) logToConsole(`[META] Splitting the range into ${chunks.length} requests to stay below the server timeout.`, 'info');
+            logToConsole(`[META] Splitting work into ${chunks.length} date part${chunks.length === 1 ? '' : 's'}, with insights and creatives stored separately.`, 'info');
 
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
-                logToConsole(`[META] Part ${i + 1}/${chunks.length}: ${chunk.since} through ${chunk.until}`, 'info');
-                const result = await runSingleSync('fetch-meta', {
-                    ...chunk,
-                    forceRefresh,
-                    includeConfiguration: i === chunks.length - 1
-                }, 'META', false);
-                if (!result.ok) return result;
-                totalRows += result.rows;
+                for (const [syncPart, stageLabel] of [['insights', 'country insights'], ['creatives', 'creative insights']]) {
+                    logToConsole(`[META] Dates ${i + 1}/${chunks.length}, ${stageLabel}: ${chunk.since} through ${chunk.until}`, 'info');
+                    const result = await runSingleSync('fetch-meta', {
+                        ...chunk,
+                        forceRefresh,
+                        includeConfiguration: false,
+                        syncPart
+                    }, 'META', false);
+                    if (!result.ok) return result;
+                    totalRows += result.rows;
+                }
             }
 
-            logToConsole(`[META] SUCCESS: Transferred ${totalRows} rows across ${chunks.length} request${chunks.length === 1 ? '' : 's'}.`, 'success');
+            const finalRange = chunks[chunks.length - 1];
+            logToConsole('[META] Updating current ad-set configuration...', 'info');
+            const configResult = await runSingleSync('fetch-meta', {
+                ...finalRange,
+                forceRefresh: false,
+                includeConfiguration: true,
+                syncPart: 'configuration'
+            }, 'META', false);
+            if (!configResult.ok) return configResult;
+            totalRows += configResult.rows;
+
+            const requestCount = chunks.length * 2 + 1;
+            logToConsole(`[META] SUCCESS: Transferred ${totalRows} rows across ${requestCount} bounded requests.`, 'success');
             return { ok: true, rows: totalRows };
         }
 

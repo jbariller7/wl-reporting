@@ -15,7 +15,10 @@ test("Update ALL forwards force refresh and covers every active source except Ti
   assert.match(refresh, /results\.telemetry\s*=\s*await etlTelemetry\(range\)/);
   assert.match(html, /\['fetch-meta', 'META'\]/);
   assert.match(html, /runMetaSync\(since, until, forceRefresh\)/);
-  assert.match(html, /includeConfiguration:\s*i === chunks\.length - 1/);
+  assert.match(html, /WLDataSync\.buildDateChunks\(since, until, 3\)/);
+  assert.match(html, /\['insights', 'country insights'\]/);
+  assert.match(html, /\['creatives', 'creative insights'\]/);
+  assert.match(html, /syncPart:\s*'configuration'/);
 });
 
 test("MailerLite force refresh fetches and filters before deleting sheet rows", () => {

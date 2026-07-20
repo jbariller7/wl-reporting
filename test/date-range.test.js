@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { isTimestampInRange, parseRange, parseUtcTimestamp } from "../lib/util.js";
-import { normalizeSheetDateValue } from "../lib/db.js";
+import { coalesceVerticalUpdates, normalizeSheetDateValue } from "../lib/db.js";
 
 test("date-only manual ranges include both complete boundary days", () => {
   const range = parseRange({ since: "2026-07-01", until: "2026-07-05" });
@@ -29,5 +29,18 @@ test("reversed manual ranges are normalized before reaching an API", () => {
 test("Google Play sheet dates support the native day-first format", () => {
   assert.equal(normalizeSheetDateValue("05/07/2026"), "2026-07-05");
   assert.equal(normalizeSheetDateValue("2026-07-19"), "2026-07-19");
+});
+
+test("adjacent sheet updates with the same columns are vertically coalesced", () => {
+  assert.deepEqual(coalesceVerticalUpdates([
+    { rowNumber: 11, startColumn: 15, endColumn: 15, values: ["raw-2"] },
+    { rowNumber: 10, startColumn: 15, endColumn: 15, values: ["raw-1"] },
+    { rowNumber: 13, startColumn: 15, endColumn: 15, values: ["raw-4"] },
+    { rowNumber: 10, startColumn: 0, endColumn: 1, values: ["2026-07-01", "879"] }
+  ]), [
+    { startColumn: 0, endColumn: 1, startRow: 10, endRow: 10, values: [["2026-07-01", "879"]] },
+    { startColumn: 15, endColumn: 15, startRow: 10, endRow: 11, values: [["raw-1"], ["raw-2"]] },
+    { startColumn: 15, endColumn: 15, startRow: 13, endRow: 13, values: [["raw-4"]] }
+  ]);
 });
 
