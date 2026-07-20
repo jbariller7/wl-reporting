@@ -18,6 +18,7 @@ test("Update ALL forwards force refresh and covers every active source except Ti
   assert.match(html, /WLDataSync\.buildDateChunks\(since, until, 3\)/);
   assert.match(html, /\['insights', 'country insights'\]/);
   assert.match(html, /\['creatives', 'creative insights'\]/);
+  assert.match(html, /syncPart:\s*'repair'/);
   assert.match(html, /syncPart:\s*'configuration'/);
 });
 

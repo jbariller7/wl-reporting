@@ -2873,6 +2873,15 @@ let diagnosisDailyData = [];
             let totalRows = 0;
             logToConsole(`[META] Splitting work into ${chunks.length} date part${chunks.length === 1 ? '' : 's'}, with insights and creatives stored separately.`, 'info');
 
+            logToConsole('[META] Repairing existing date/account cell types...', 'info');
+            const repairResult = await runSingleSync('fetch-meta', {
+                ...chunks[0],
+                forceRefresh: false,
+                includeConfiguration: false,
+                syncPart: 'repair'
+            }, 'META', false);
+            if (!repairResult.ok) return repairResult;
+
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 for (const [syncPart, stageLabel] of [['insights', 'country insights'], ['creatives', 'creative insights']]) {
@@ -2899,7 +2908,7 @@ let diagnosisDailyData = [];
             if (!configResult.ok) return configResult;
             totalRows += configResult.rows;
 
-            const requestCount = chunks.length * 2 + 1;
+            const requestCount = chunks.length * 2 + 2;
             logToConsole(`[META] SUCCESS: Transferred ${totalRows} rows across ${requestCount} bounded requests.`, 'success');
             return { ok: true, rows: totalRows };
         }
