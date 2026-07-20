@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="/google-play.js"></script>
     <script src="/meta-optimizer.js"></script>
+    <script src="/sync-utils.js"></script>
     
     <style>
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
@@ -2842,6 +2843,52 @@ let diagnosisDailyData = [];
             c.appendChild(d); c.scrollTop = c.scrollHeight;
         }
 
+        async function requestSync(endpoint, payload) {
+            const response = await fetch(`/.netlify/functions/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            return WLDataSync.readJsonResponse(response);
+        }
+
+        function logSyncPayload(json) {
+            if (json.logs) json.logs.forEach(l => logToConsole(l.msg, l.type));
+        }
+
+        async function runSingleSync(endpoint, payload, label, announceSuccess = true) {
+            const json = await requestSync(endpoint, payload);
+            logSyncPayload(json);
+            if (json.ok === false) {
+                logToConsole(`[${label}] ERROR: ${json.msg}`, 'error');
+                return { ok: false, rows: 0 };
+            }
+            const rows = Number(json.rows || 0);
+            if (announceSuccess) logToConsole(`[${label}] SUCCESS: Transferred ${rows} rows.`, 'success');
+            return { ok: true, rows };
+        }
+
+        async function runMetaSync(since, until, forceRefresh) {
+            const chunks = WLDataSync.buildDateChunks(since, until, 7);
+            let totalRows = 0;
+            if (chunks.length > 1) logToConsole(`[META] Splitting the range into ${chunks.length} requests to stay below the server timeout.`, 'info');
+
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                logToConsole(`[META] Part ${i + 1}/${chunks.length}: ${chunk.since} through ${chunk.until}`, 'info');
+                const result = await runSingleSync('fetch-meta', {
+                    ...chunk,
+                    forceRefresh,
+                    includeConfiguration: i === chunks.length - 1
+                }, 'META', false);
+                if (!result.ok) return result;
+                totalRows += result.rows;
+            }
+
+            logToConsole(`[META] SUCCESS: Transferred ${totalRows} rows across ${chunks.length} request${chunks.length === 1 ? '' : 's'}.`, 'success');
+            return { ok: true, rows: totalRows };
+        }
+
         async function triggerUpdate(endpoint) {
             const btns = document.querySelectorAll('#view-sync button');
             btns.forEach(b => b.disabled = true);
@@ -2857,32 +2904,47 @@ let diagnosisDailyData = [];
                 logToConsole(`The selected dates were reversed. Corrected the range to ${since} through ${until}.`, 'warn');
             }
             logToConsole(`>>> Starting ${endpoint.toUpperCase()}...`, 'warn');
+
+            let hasSuccessfulData = false;
             try {
-                const res = await fetch(`/.netlify/functions/${endpoint}`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        since,
-                        until,
-                        forceRefresh
-                    }) 
-                });
-                const json = await res.json();
-                if (res.ok) {
-                    GLOBAL_RAW_DATA = null;
-                    if (json.logs) json.logs.forEach(l => logToConsole(l.msg, l.type));
-                    if (endpoint === 'refresh' && json.results) Object.entries(json.results).forEach(([src, data]) => logToConsole(`[${src.toUpperCase()}] ${data?.ok === false ? 'ERROR: ' + data.msg : 'SUCCESS: Added ' + (data?.rows||0)}`, data?.ok === false ? 'error' : 'success'));
-                    else logToConsole(json.ok === false ? `ERROR: ${json.msg}` : `SUCCESS: Transferred ${json.rows || 0} rows.`, json.ok === false ? 'error' : 'success');
-                    const hasSuccessfulData = endpoint === 'refresh'
-                        ? Object.values(json.results || {}).some(data => data?.ok !== false)
-                        : json.ok !== false;
-                    if (hasSuccessfulData) {
-                        logToConsole('Reloading dashboard data...', 'info');
-                        await refreshAllViews();
+                if (endpoint === 'refresh') {
+                    const sources = [
+                        ['fetch-stripe', 'STRIPE'],
+                        ['fetch-meta', 'META'],
+                        ['fetch-mailerlite', 'MAILERLITE'],
+                        ['fetch-steam-sales', 'STEAM'],
+                        ['fetch-google-play', 'GOOGLE PLAY'],
+                        ['fetch-telemetry', 'TELEMETRY']
+                    ];
+                    for (const [sourceEndpoint, label] of sources) {
+                        logToConsole(`[${label}] Starting...`, 'warn');
+                        try {
+                            const result = sourceEndpoint === 'fetch-meta'
+                                ? await runMetaSync(since, until, forceRefresh)
+                                : await runSingleSync(sourceEndpoint, { since, until, forceRefresh }, label);
+                            hasSuccessfulData ||= result.ok;
+                        } catch (error) {
+                            logToConsole(`[${label}] ERROR: ${error.message}`, 'error');
+                        }
                     }
-                } else logToConsole(`HTTP ERROR: ${json.error || res.statusText}`, 'error');
-            } catch (err) { logToConsole(`NETWORK ERROR: ${err.message}`, 'error'); } 
-            finally { btns.forEach(b => b.disabled = false); logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn'); }
+                } else {
+                    const result = endpoint === 'fetch-meta'
+                        ? await runMetaSync(since, until, forceRefresh)
+                        : await runSingleSync(endpoint, { since, until, forceRefresh }, endpoint.toUpperCase());
+                    hasSuccessfulData = result.ok;
+                }
+
+                if (hasSuccessfulData) {
+                    GLOBAL_RAW_DATA = null;
+                    logToConsole('Reloading dashboard data...', 'info');
+                    await refreshAllViews();
+                }
+            } catch (err) {
+                logToConsole(`SYNC ERROR: ${err.message}`, 'error');
+            } finally {
+                btns.forEach(b => b.disabled = false);
+                logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn');
+            }
         }
     </script>
     
