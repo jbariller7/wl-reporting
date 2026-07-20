@@ -19,6 +19,13 @@ test("MailerLite UTC timestamps with a space include the selected first day", ()
   assert.equal(isTimestampInRange("2026-06-30 23:59:59", since, until), false);
 });
 
+test("reversed manual ranges are normalized before reaching an API", () => {
+  const range = parseRange({ since: "2026-07-20", until: "2026-06-21" });
+  assert.equal(range.sinceUtc, "2026-06-21T00:00:00.000Z");
+  assert.equal(range.untilUtc, "2026-07-20T23:59:59.999Z");
+  assert.equal(range.rangeWasReversed, true);
+});
+
 test("Google Play sheet dates support the native day-first format", () => {
   assert.equal(normalizeSheetDateValue("05/07/2026"), "2026-07-05");
   assert.equal(normalizeSheetDateValue("2026-07-19"), "2026-07-19");

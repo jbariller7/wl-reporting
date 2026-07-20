@@ -2487,6 +2487,12 @@ const datasets = selectedMetrics.map(key => {
                     lastMonth.setDate(today.getDate() - 30);
                     document.getElementById('dash-end').value = today.toISOString().split('T')[0];
                     document.getElementById('dash-start').value = lastMonth.toISOString().split('T')[0];
+
+                    const syncUntil = new Date(today);
+                    const syncSince = new Date(syncUntil);
+                    syncSince.setDate(syncSince.getDate() - 29);
+                    document.getElementById('since').value = syncSince.toISOString().split('T')[0];
+                    document.getElementById('until').value = syncUntil.toISOString().split('T')[0];
                     
                     loadExcludedDates();
                     loadOptimizerTargets();
@@ -2840,14 +2846,24 @@ let diagnosisDailyData = [];
             const btns = document.querySelectorAll('#view-sync button');
             btns.forEach(b => b.disabled = true);
             const forceRefresh = document.getElementById('force-refresh').checked;
+            const sinceInput = document.getElementById('since');
+            const untilInput = document.getElementById('until');
+            let since = sinceInput.value || undefined;
+            let until = untilInput.value || undefined;
+            if (since && until && since > until) {
+                [since, until] = [until, since];
+                sinceInput.value = since;
+                untilInput.value = until;
+                logToConsole(`The selected dates were reversed. Corrected the range to ${since} through ${until}.`, 'warn');
+            }
             logToConsole(`>>> Starting ${endpoint.toUpperCase()}...`, 'warn');
             try {
                 const res = await fetch(`/.netlify/functions/${endpoint}`, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
-                        since: document.getElementById('since').value || undefined, 
-                        until: document.getElementById('until').value || undefined,
+                        since,
+                        until,
                         forceRefresh
                     }) 
                 });

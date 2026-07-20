@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { shouldRetryMetaStableFields } from "../lib/meta.js";
 
 await import("../public/meta-optimizer.js");
 const { buildOptimizerReport, toMarkdown } = globalThis.WLMetaOptimizer;
@@ -80,4 +81,9 @@ test("dashboard wires the optimizer to the new read-only Meta sheets", () => {
   assert.match(meta, /level:\s*"ad"/);
   assert.match(meta, /daily_budget/);
   assert.match(meta, /\{ createSheet: true, updateExisting: true \}/);
+});
+
+test("Meta stable-field fallback does not retry invalid date ranges", () => {
+  assert.equal(shouldRetryMetaStableFields(new Error("(#100) For field 'insights': since must be less than or equal to until in time_range")), false);
+  assert.equal(shouldRetryMetaStableFields(new Error("(#100) Tried accessing nonexisting field reach")), true);
 });
