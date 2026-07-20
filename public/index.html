@@ -109,7 +109,7 @@
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-green-400 flex flex-col justify-center">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Net Revenue <span class="text-[9px] lowercase text-gray-400 font-normal hidden sm:inline">(-Tax/Fees)</span></div>
                     <div class="text-lg sm:text-xl font-bold text-gray-800 leading-tight" id="kpi-net">€0.00</div>
-                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-net-breakdown">Steam: €0 | Stripe: €0</div>
+                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-net-breakdown">Steam: €0 | Google Play: €0 | Stripe/PP: €0</div>
                 </div>
                 <div id="kpi-profit-card" class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-gray-300">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Net Profit</div>
@@ -370,7 +370,7 @@
             <h2 class="text-xl font-bold text-gray-800 mb-2">Day of Week Performance Matrix</h2>
             <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
                 *Heatmap colors are calculated <strong>vertically</strong> (comparing all rows on the same day). This shows you which entity dominates on a given day of the week.<br>
-                *Note: Steam purchases are organic/global and cannot be natively attributed to a specific Meta Ad Set, so Revenue/ROAS will pool into "Unattributed" in the Ad Set table.
+                *Note: Steam and Google Play purchases are organic/global and cannot be natively attributed to a specific Meta Ad Set, so Revenue/ROAS will pool into "Unattributed" in the Ad Set table.
             </div>
 
             <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-8 overflow-hidden">
@@ -580,12 +580,13 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL</button>
+                    <button onclick="triggerUpdate('refresh')" class="bg-gray-800 text-white py-2 rounded hover:bg-black transition">Update ALL (except TikTok)</button>
                     <button onclick="triggerUpdate('fetch-stripe')" class="bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">Stripe</button>
                     <button onclick="triggerUpdate('fetch-meta')" class="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">Meta Ads</button>
                     <button onclick="triggerUpdate('fetch-tiktok')" class="bg-black text-white py-2 rounded hover:bg-gray-800 transition">TikTok Ads</button>
                     <button onclick="triggerUpdate('fetch-mailerlite')" class="bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">MailerLite</button>
                     <button onclick="triggerUpdate('fetch-steam-sales')" class="bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">Steam</button>
+                    <button onclick="triggerUpdate('fetch-google-play')" class="bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 transition">Google Play</button>
                     <button onclick="triggerUpdate('fetch-telemetry')" class="bg-teal-600 text-white py-2 rounded hover:bg-teal-700 transition">Telemetry</button>
                 </div>
             </div>
@@ -632,10 +633,10 @@
                 });
             });
 
-            const [meta, steam, stripe, paypal, mailerlite, telemetry] = await Promise.all([
-                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite'), fetchSheet('Telemetry')
+            const [meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
+                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Google_Play'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite'), fetchSheet('Telemetry')
             ]);
-            GLOBAL_RAW_DATA = { meta, steam, stripe, paypal, mailerlite, telemetry };
+            GLOBAL_RAW_DATA = { meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
@@ -659,6 +660,14 @@
                 return 0; 
             }
             return amount * rate; 
+        }
+
+        function forEachGooglePlayRevenue(raw, callback) {
+            (raw.googlePlay || []).forEach(r => {
+                const netRevenue = parseFloat(r.net_revenue || 0);
+                if (!Number.isFinite(netRevenue)) return;
+                callback(r.date || r.charged_at, toEur(netRevenue, r.currency), r.country || 'UNKNOWN');
+            });
         }
 
         const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -1103,6 +1112,7 @@ let globalDashboardState = {};
 
             raw.meta.forEach(r => addOpts(r.country));
             raw.steam.forEach(r => addOpts(r.country));
+            (raw.googlePlay || []).forEach(r => addOpts(r.country));
             raw.stripe.forEach(r => addOpts(r.country));
             raw.mailerlite.forEach(r => addOpts(r.country));
 
@@ -1126,7 +1136,7 @@ let globalDashboardState = {};
         let dashSort = { country: { col: 'roas', desc: true }, region: { col: 'roas', desc: true } };
 
         function loadDashboardData(raw) {
-            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalOtherNet = 0, totalSubs = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
+            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const regionAgg = {};
@@ -1165,6 +1175,7 @@ regs.forEach(reg => {
                     if (metric === 'net') {
                         totalNet += val;
                         if (source === 'steam') totalSteamNet += val;
+                        else if (source === 'google_play') totalGooglePlayNet += val;
                         else totalOtherNet += val;
                     }
                     if (metric === 'subs') totalSubs += val;
@@ -1184,6 +1195,7 @@ regs.forEach(reg => {
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, 'mailerlite'));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, 'steam'));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, 'google_play'));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -1217,7 +1229,7 @@ regs.forEach(reg => {
 
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
-            document.getElementById('kpi-net-breakdown').innerText = `Steam: €${totalSteamNet.toFixed(2)} | Stripe/PP: €${totalOtherNet.toFixed(2)}`;
+            document.getElementById('kpi-net-breakdown').innerText = `Steam: €${totalSteamNet.toFixed(2)} | Google Play: €${totalGooglePlayNet.toFixed(2)} | Stripe/PP: €${totalOtherNet.toFixed(2)}`;
             
             const netProfit = totalNet - totalSpend;
             document.getElementById('kpi-profit').innerText = `€${netProfit.toFixed(2)}`;
@@ -1432,6 +1444,7 @@ regs.forEach(reg => {
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, null));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, null));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, null));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -1633,6 +1646,7 @@ regs.forEach(reg => {
             raw.meta.forEach(r => { if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country); });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -1741,6 +1755,7 @@ let isFilteredIn = false;
                 if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country, r.adset_name);
             });
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, null));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, null));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -1845,6 +1860,7 @@ function loadEvolutionData(raw) {
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -2266,6 +2282,7 @@ let diagnosisDailyData = [];
             });
             raw.mailerlite.forEach(r => addAllTime(r.created_at, 'subs', 1, r.country));
             raw.steam.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addAllTime(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -2318,6 +2335,7 @@ let diagnosisDailyData = [];
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
                     let stripeNetEur = 0;
@@ -2569,6 +2587,7 @@ let diagnosisDailyData = [];
                 });
                 const json = await res.json();
                 if (res.ok) {
+                    GLOBAL_RAW_DATA = null;
                     if (json.logs) json.logs.forEach(l => logToConsole(l.msg, l.type));
                     if (endpoint === 'refresh' && json.results) Object.entries(json.results).forEach(([src, data]) => logToConsole(`[${src.toUpperCase()}] ${data?.ok === false ? 'ERROR: ' + data.msg : 'SUCCESS: Added ' + (data?.rows||0)}`, data?.ok === false ? 'error' : 'success'));
                     else logToConsole(json.ok === false ? `ERROR: ${json.msg}` : `SUCCESS: Transferred ${json.rows || 0} rows.`, json.ok === false ? 'error' : 'success');
