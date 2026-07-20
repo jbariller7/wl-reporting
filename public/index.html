@@ -1068,9 +1068,11 @@ let globalDashboardState = {};
                     const utmSource = (rawObj.fields?.utm_source || '').toLowerCase();
                     const isReddit = utmSource.includes('reddit');
                     
-                    // Exclude "PDF Content only" group (MailerLite stores this in the groups array)
-                    const groups = rawObj.groups || [];
-                    const isPdfOnly = groups.some(g => g.name === 'PDF Content only' || g.name === 'PDF content only');
+                    // Exclude subscribers whose included MailerLite group is "PDF Content only".
+                    const groups = Array.isArray(rawObj.groups) ? rawObj.groups : [];
+                    const isPdfOnly = groups.some(g =>
+                        String(g?.name || '').trim().toLowerCase() === 'pdf content only'
+                    );
                     
                     // Keep the row ONLY if it's not Reddit AND not in the PDF group
                     return !isReddit && !isPdfOnly;

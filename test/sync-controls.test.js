@@ -29,3 +29,11 @@ test("MailerLite force refresh fetches and filters before deleting sheet rows", 
   assert.ok(fetchIndex >= 0 && deleteIndex > fetchIndex, "force refresh must not delete before the MailerLite API fetch succeeds");
   assert.ok(upsertIndex > deleteIndex, "replacement rows must be written after the selected range is cleared");
 });
+
+test("MailerLite sync includes groups and dashboard excludes PDF Content only subscribers", () => {
+  const etl = fs.readFileSync(new URL("../lib/etl.js", import.meta.url), "utf8");
+  const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+
+  assert.match(etl, /subscribers\?limit=100&include=groups/);
+  assert.match(html, /String\(g\?\.name \|\| ''\)\.trim\(\)\.toLowerCase\(\) === 'pdf content only'/);
+});
