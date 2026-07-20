@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import { zipSync } from "fflate";
 import {
   extractGooglePlaySalesRowsFromZip,
+  GOOGLE_PLAY_SHEET_COLUMNS,
   monthsInRange,
-  parseGooglePlaySalesCsv
+  parseGooglePlaySalesCsv,
+  toGooglePlaySheetRows
 } from "../lib/google-play.js";
 
 const HEADER = "Order Number,Order Charged Date,Order Charged Timestamp,Financial Status,Product Title,Package ID,Product Type,SKU ID,Currency of Sale,Item Price,Taxes Collected,Charged Amount,Country of Buyer";
@@ -51,5 +53,22 @@ test("UTF-16 Google Play ZIP reports are decoded", () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].currency, "USD");
   assert.equal(rows[0].net_revenue, 3.4);
+});
+
+test("automatic sync writes the native Google Play report schema", () => {
+  const csv = `${HEADER}\nGPA.3321-9652-4732-87159,2026-07-05,1783288058,Charged,WonderLang,com.wonderlang.app,One-time product,wonderlangch1,GBP,6.66,1.33,7.99,GB`;
+  const parsed = parseGooglePlaySalesCsv(csv, {
+    sinceUtc: "2026-07-01T00:00:00.000Z",
+    untilUtc: "2026-07-31T23:59:59.999Z",
+    packageId: "com.wonderlang.app"
+  });
+  const [sheetRow] = toGooglePlaySheetRows(parsed);
+
+  assert.deepEqual(Object.keys(sheetRow), GOOGLE_PLAY_SHEET_COLUMNS);
+  assert.equal(sheetRow["Order Number"], "GPA.3321-9652-4732-87159");
+  assert.equal(sheetRow["Order Charged Date"], "2026-07-05");
+  assert.equal(sheetRow["Currency of Sale"], "GBP");
+  assert.equal(sheetRow["Country of Buyer"], "GB");
+  assert.equal(sheetRow["Sales Channel"], "");
 });
 
