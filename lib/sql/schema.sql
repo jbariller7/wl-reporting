@@ -45,6 +45,61 @@ CREATE TABLE IF NOT EXISTS meta_insights (
   PRIMARY KEY (date, account_id, ad_id)
 );
 
+-- Read-only Meta ad-set configuration snapshots used by the recommendation engine
+CREATE TABLE IF NOT EXISTS meta_adsets (
+  snapshot_date DATE NOT NULL,
+  snapshot_at TIMESTAMPTZ,
+  account_id TEXT NOT NULL,
+  account_currency TEXT,
+  account_timezone TEXT,
+  campaign_id TEXT,
+  adset_id TEXT NOT NULL,
+  adset_name TEXT,
+  status TEXT,
+  effective_status TEXT,
+  daily_budget BIGINT,
+  lifetime_budget BIGINT,
+  budget_remaining BIGINT,
+  bid_amount BIGINT,
+  bid_strategy TEXT,
+  billing_event TEXT,
+  optimization_goal TEXT,
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ,
+  created_time TIMESTAMPTZ,
+  updated_time TIMESTAMPTZ,
+  targeting JSONB,
+  attribution_spec JSONB,
+  promoted_object JSONB,
+  raw JSONB,
+  ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (snapshot_date, adset_id)
+);
+
+-- Daily ad-level insights for creative fatigue and test recommendations
+CREATE TABLE IF NOT EXISTS meta_ad_insights (
+  date DATE NOT NULL,
+  account_id TEXT NOT NULL,
+  campaign_id TEXT,
+  campaign_name TEXT,
+  adset_id TEXT,
+  adset_name TEXT,
+  ad_id TEXT NOT NULL,
+  ad_name TEXT,
+  impressions BIGINT,
+  reach BIGINT,
+  frequency NUMERIC(14,4),
+  clicks BIGINT,
+  link_clicks BIGINT,
+  landing_page_views BIGINT,
+  registrations BIGINT,
+  spend NUMERIC(14,4),
+  purchases NUMERIC(14,4),
+  raw JSONB,
+  ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (date, account_id, ad_id)
+);
+
 -- TikTok Ads daily insights
 CREATE TABLE IF NOT EXISTS tiktok_insights (
   date DATE NOT NULL,

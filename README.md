@@ -76,9 +76,20 @@ Two scheduled functions automate data collection:
 - **cron-hourly** – runs every hour to fetch Stripe, Meta, TikTok and MailerLite data for the last 48 hours.
 - **cron-daily** – runs at 04:00 UTC daily to fetch Steam sales and recheck the last 14 days of Google Play reports.
 
+## Meta Ads decision optimizer
+
+The **Ad Optimizer** dashboard tab deliberately separates two evidence layers:
+
+- exact Meta ad-set delivery (`Meta`) and ad-level creative performance (`Meta_Ads`);
+- shared country-market economics from Steam, Google Play, Stripe, PayPal, MailerLite and telemetry.
+
+Store revenue is never assigned to an individual ad set. When multiple ad sets deliver in the same country, the optimizer lowers recommendation confidence and uses country revenue only to decide whether the overall market budget should grow, hold or shrink. The Meta sync also creates `Meta_AdSets`, a daily read-only snapshot of budget, bid/cost-cap, delivery status, optimization and targeting configuration.
+
+Reports automatically stop at yesterday to avoid comparing partial current-day Meta spend with delayed Steam revenue. Use **Copy AI Optimizer Packet** to export the compact ad-set actions, shared market signals, evidence and new-market candidates.
+
 ## Notes
 
 * All timestamps are stored in UTC.  Convert to Europe/Paris in your front‑end when displaying dates.
-* Sensitive values such as emails are hashed before storage.
+* Primary email lookup values are hashed, but provider `raw` payloads may still contain personal data. Restrict sheet sharing and do not treat the dashboard PIN as protection for a publicly readable sheet.
 * The script uses simple upsert logic to avoid duplicating rows when re‑ingesting overlapping data.
 * See the source code in `lib/etl.js` and the SQL schema under `lib/sql/` for details on the data model.

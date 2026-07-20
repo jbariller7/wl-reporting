@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="/google-play.js"></script>
+    <script src="/meta-optimizer.js"></script>
     
     <style>
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
@@ -35,6 +36,7 @@
                     <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-active pb-1 px-2 shrink-0">Main</button>
                     <button onclick="switchTab('evolution')" id="tab-evolution" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Daily Evolution</button>
                     <button onclick="switchTab('diagnosis')" id="tab-diagnosis" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">AI Diagnosis</button>
+                    <button onclick="switchTab('optimizer')" id="tab-optimizer" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Ad Optimizer</button>
                     <button onclick="switchTab('funnel')" id="tab-funnel" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Funnel Health</button>
                     <button onclick="switchTab('roas')" id="tab-roas" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">ROAS Scaling</button>
                 <button onclick="switchTab('dow')" id="tab-dow" class="text-gray-500 hover:text-blue-500 pb-1 px-2 shrink-0">Day of Week</button>
@@ -538,14 +540,14 @@
                 <div class="flex flex-col">
                     <h2 class="text-xl font-bold text-gray-800">Daily Funnel Diagnosis (For AI)</h2>
                     <div class="flex gap-2 mt-2">
-                        <button onclick="setDiagnosisView('adset')" id="btn-diag-adset" class="bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm">By Region / Ad Set</button>
+                        <button onclick="setDiagnosisView('adset')" id="btn-diag-adset" class="bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold shadow-sm">By Region</button>
                         <button onclick="setDiagnosisView('country')" id="btn-diag-country" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-bold shadow-sm hover:bg-gray-300">By Country</button>
                     </div>
                 </div>
                 <button onclick="copyDiagnosisForGemini()" id="btn-copy-diagnosis" class="bg-indigo-600 text-white px-4 py-1.5 rounded shadow-sm hover:bg-indigo-700 transition text-sm font-bold w-full sm:w-auto">🤖 Copy Daily Data for Gemini</button>
             </div>
             <div class="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border mb-6">
-                *This breaks down your entire mathematical funnel day-by-day. Use the buttons above to toggle between the simplified <strong>Ad Set</strong> view or the detailed <strong>Country</strong> view. Click the purple button to copy this data, then paste it back to the AI.
+                *This legacy view groups store revenue by <strong>region</strong>, not by Meta ad set. Use the Ad Optimizer tab for ad-set actions and explicit shared-market confidence.
             </div>
 
             <div class="bg-white p-0 sm:p-5 rounded-lg shadow-sm mb-10 overflow-hidden">
@@ -554,6 +556,72 @@
                         <thead id="diagnosis-thead"></thead>
                         <tbody id="diagnosis-table-body" class="text-xs sm:text-sm"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-optimizer" class="hidden">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-4 gap-3">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">Meta Ads Decision Optimizer</h2>
+                    <p class="text-sm text-gray-500 mt-1">Recommendation only. Store revenue remains shared country-market evidence and is never assigned to an individual ad set.</p>
+                </div>
+                <button onclick="copyOptimizerForAI()" id="btn-copy-optimizer" class="bg-indigo-600 text-white px-4 py-2 rounded shadow-sm hover:bg-indigo-700 transition text-sm font-bold w-full lg:w-auto">Copy AI Optimizer Packet</button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded mb-5 text-sm">
+                The report automatically stops at yesterday so partial Meta spend is not compared with unavailable Steam revenue. Overlapping and multi-country ad sets receive lower confidence.
+            </div>
+
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-5">
+                <h3 class="font-bold text-gray-800 mb-3">Decision guardrails</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    <label class="text-xs font-medium text-gray-600">Target shared-market ROAS
+                        <input id="optimizer-target-roas" type="number" step="0.1" min="0" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                    <label class="text-xs font-medium text-gray-600">Target subscriber cost (€)
+                        <input id="optimizer-target-cps" type="number" step="0.1" min="0" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                    <label class="text-xs font-medium text-gray-600">Minimum 28d spend (€)
+                        <input id="optimizer-min-spend" type="number" step="5" min="0" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                    <label class="text-xs font-medium text-gray-600">Target link CTR (%)
+                        <input id="optimizer-link-ctr" type="number" step="0.1" min="0" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                    <label class="text-xs font-medium text-gray-600">Minimum LPV/link-click rate (%)
+                        <input id="optimizer-lpv-rate" type="number" step="1" min="0" max="100" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                    <label class="text-xs font-medium text-gray-600">Maximum suggested change (%)
+                        <input id="optimizer-max-change" type="number" step="5" min="5" max="25" class="block border rounded p-2 mt-1 w-full" onchange="saveMetaOptimizerTargets();">
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                <div class="bg-white p-4 rounded shadow-sm border-l-4 border-indigo-500"><div class="text-xs uppercase text-gray-500">Reporting cutoff</div><div id="optimizer-cutoff" class="text-lg font-bold">-</div></div>
+                <div class="bg-white p-4 rounded shadow-sm border-l-4 border-blue-500"><div class="text-xs uppercase text-gray-500">Ad sets with 28d activity</div><div id="optimizer-adset-count" class="text-lg font-bold">0</div></div>
+                <div class="bg-white p-4 rounded shadow-sm border-l-4 border-orange-500"><div class="text-xs uppercase text-gray-500">Actions proposed</div><div id="optimizer-action-count" class="text-lg font-bold">0</div></div>
+                <div class="bg-white p-4 rounded shadow-sm border-l-4 border-green-500"><div class="text-xs uppercase text-gray-500">Market candidates</div><div id="optimizer-opportunity-count" class="text-lg font-bold">0</div></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+                <div class="p-4 border-b"><h3 class="font-bold text-gray-800">Ad-set actions</h3><p class="text-xs text-gray-500">Delivery metrics are exact. Market ROAS is shared evidence only.</p></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left whitespace-nowrap min-w-[1250px]">
+                        <thead class="bg-gray-100 text-xs text-gray-700"><tr><th class="p-3">Action</th><th class="p-3">Confidence</th><th class="p-3">Ad set</th><th class="p-3">Countries</th><th class="p-3 text-right">Spend 7d</th><th class="p-3 text-right">Link CTR</th><th class="p-3 text-right">LPV rate</th><th class="p-3 text-right">Shared ROAS 7d</th><th class="p-3 text-right">Shared ROAS 28d</th><th class="p-3 text-right">Budget</th><th class="p-3 text-right">CPA</th><th class="p-3">Adjustment / evidence</th></tr></thead>
+                        <tbody id="optimizer-adset-body" class="text-xs"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-10">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-4 border-b"><h3 class="font-bold text-gray-800">Country-market envelopes</h3></div>
+                    <div class="overflow-x-auto max-h-[600px]"><table class="w-full text-left whitespace-nowrap"><thead class="bg-gray-100 text-xs sticky top-0"><tr><th class="p-3">Country</th><th class="p-3">Action</th><th class="p-3 text-right">Spend 28d</th><th class="p-3 text-right">Revenue 28d</th><th class="p-3 text-right">ROAS</th><th class="p-3 text-right">Ad sets</th></tr></thead><tbody id="optimizer-market-body" class="text-xs"></tbody></table></div>
+                </div>
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-4 border-b"><h3 class="font-bold text-gray-800">New-market opportunities</h3><p class="text-xs text-gray-500">Organic/store signals with no dedicated country ad set.</p></div>
+                    <div class="overflow-x-auto"><table class="w-full text-left whitespace-nowrap"><thead class="bg-gray-100 text-xs"><tr><th class="p-3">Country</th><th class="p-3">Test</th><th class="p-3">Confidence</th><th class="p-3 text-right">Revenue</th><th class="p-3 text-right">Orders</th><th class="p-3 text-right">Subscribers</th></tr></thead><tbody id="optimizer-opportunity-body" class="text-xs"></tbody></table></div>
                 </div>
             </div>
         </div>
@@ -634,10 +702,10 @@
                 });
             });
 
-            const [meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
-                fetchSheet('Meta'), fetchSheet('Steam_Sales'), fetchSheet('Google_Play'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite'), fetchSheet('Telemetry')
+            const [meta, metaAdsets, metaAds, steam, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
+                fetchSheet('Meta'), fetchSheet('Meta_AdSets'), fetchSheet('Meta_Ads'), fetchSheet('Steam_Sales'), fetchSheet('Google_Play'), fetchSheet('Stripe'), fetchSheet('Paypal'), fetchSheet('MailerLite'), fetchSheet('Telemetry')
             ]);
-            GLOBAL_RAW_DATA = { meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry };
+            GLOBAL_RAW_DATA = { meta, metaAdsets, metaAds, steam, googlePlay, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
@@ -668,7 +736,7 @@
                 const sale = WLGooglePlay.normalizeRow(r, 0.15);
                 if (!sale) return;
                 const netAfterUrssaf = toEur(sale.netRevenue, sale.currency) * (1 - TAX_RATE);
-                callback(sale.date, netAfterUrssaf, sale.country);
+                callback(sale.date, netAfterUrssaf, sale.country, sale.units);
             });
         }
 
@@ -1020,6 +1088,12 @@
             document.getElementById('target-cps').value = localStorage.getItem('wl-target-cps') || '2.0';
             document.getElementById('target-ctr').value = localStorage.getItem('wl-target-ctr') || '1.0';
             document.getElementById('target-optin').value = localStorage.getItem('wl-target-optin') || '20';
+            document.getElementById('optimizer-target-roas').value = document.getElementById('target-roas').value;
+            document.getElementById('optimizer-target-cps').value = document.getElementById('target-cps').value;
+            document.getElementById('optimizer-min-spend').value = localStorage.getItem('wl-optimizer-min-spend') || '20';
+            document.getElementById('optimizer-link-ctr').value = localStorage.getItem('wl-optimizer-link-ctr') || '1.0';
+            document.getElementById('optimizer-lpv-rate').value = localStorage.getItem('wl-optimizer-lpv-rate') || '45';
+            document.getElementById('optimizer-max-change').value = localStorage.getItem('wl-optimizer-max-change') || '15';
         }
         
         function saveOptimizerTargets() {
@@ -1027,12 +1101,25 @@
             localStorage.setItem('wl-target-cps', document.getElementById('target-cps').value);
             localStorage.setItem('wl-target-ctr', document.getElementById('target-ctr').value);
             localStorage.setItem('wl-target-optin', document.getElementById('target-optin').value);
+            localStorage.setItem('wl-optimizer-min-spend', document.getElementById('optimizer-min-spend').value);
+            localStorage.setItem('wl-optimizer-link-ctr', document.getElementById('optimizer-link-ctr').value);
+            localStorage.setItem('wl-optimizer-lpv-rate', document.getElementById('optimizer-lpv-rate').value);
+            localStorage.setItem('wl-optimizer-max-change', document.getElementById('optimizer-max-change').value);
+            document.getElementById('optimizer-target-roas').value = document.getElementById('target-roas').value;
+            document.getElementById('optimizer-target-cps').value = document.getElementById('target-cps').value;
             renderFunnelTables(); 
+        }
+
+        function saveMetaOptimizerTargets() {
+            document.getElementById('target-roas').value = document.getElementById('optimizer-target-roas').value;
+            document.getElementById('target-cps').value = document.getElementById('optimizer-target-cps').value;
+            saveOptimizerTargets();
+            refreshAllViews();
         }
 
         // --- UI Tabs ---
         function switchTab(tab) {
-      ['dashboard', 'roas', 'dow', 'calendar', 'funnel', 'sync', 'evolution', 'diagnosis'].forEach(t => {
+      ['dashboard', 'roas', 'dow', 'calendar', 'funnel', 'sync', 'evolution', 'diagnosis', 'optimizer'].forEach(t => {
                 document.getElementById('view-' + t).classList.toggle('hidden', tab !== t);
                 const btn = document.getElementById('tab-' + t);
                 if(btn) {
@@ -1097,6 +1184,7 @@ let globalDashboardState = {};
             loadDowData(raw);
             loadEvolutionData(raw);
             loadDiagnosisData(raw);
+            loadOptimizerData(raw);
             btn.innerText = originalText;
             btn.disabled = false;
         }
@@ -1514,8 +1602,9 @@ regs.forEach(reg => {
             const targetCtr = parseFloat(document.getElementById('target-ctr').value) || 1.0;
             const targetOptin = parseFloat(document.getElementById('target-optin').value) || 20.0;
 
-            const getAction = (c) => {
+            const getAction = (c, type) => {
                 if (!c || c.spend <= 0) return '-';
+                if (type === 'adset') return 'SEE OPTIMIZER';
                 if (c.roas >= targetRoas) return 'SCALE';
                 if (c.roas >= 1.0) return 'REDUCE';
                 if (c.cps <= targetCps) return 'MONITOR';
@@ -1564,8 +1653,8 @@ regs.forEach(reg => {
                 }
 
                 html += arr.map(c => {
-                    const currentAction = getAction(c);
-                    const prevAction = getAction(c.prevMetrics);
+                    const currentAction = getAction(c, type);
+                    const prevAction = getAction(c.prevMetrics, type);
 
                     let bgClass = 'hover:bg-gray-50';
                     let actionBadge = '-';
@@ -2197,6 +2286,179 @@ const datasets = selectedMetrics.map(key => {
             });
         }
 
+        // --- META ADS DECISION OPTIMIZER ---
+        let currentOptimizerReport = null;
+
+        function optimizerDateAllowed(date) {
+            const d = normalizeDate(date);
+            return d && !isDateExcluded(d, globalDashboardState.excludedRanges || []);
+        }
+
+        function optimizerCountryAllowed(country) {
+            const code = String(country || 'UNKNOWN').toUpperCase();
+            const selections = globalDashboardState.filterSelection || ['ALL'];
+            if (selections.includes('ALL') || selections.length === 0) return true;
+            const regions = REGIONS[code] || [];
+            return selections.some(sel => sel.startsWith('REGION:') ? regions.includes(sel.replace('REGION:', '')) : code === sel);
+        }
+
+        function latestDataDate(rows, field) {
+            return (rows || []).map(row => normalizeDate(row[field])).filter(Boolean).sort().pop() || null;
+        }
+
+        function buildOptimizerMarketRows(raw) {
+            const rows = [];
+            const push = (date, country, values) => {
+                if (!optimizerDateAllowed(date) || !optimizerCountryAllowed(country)) return;
+                rows.push({ date: normalizeDate(date), country: String(country || 'UNKNOWN').toUpperCase(), ...values });
+            };
+
+            raw.steam.forEach(row => push(row.date, row.country, {
+                netRevenue: toEur(parseFloat(row.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE),
+                orders: parseFloat(row.net_units || row.units || 0)
+            }));
+            forEachGooglePlayRevenue(raw, (date, netRevenue, country, units) => push(date, country, { netRevenue, orders: units || 0 }));
+            raw.stripe.forEach(row => {
+                if (row.status === 'unpaid') return;
+                let stripeNetEur = 0;
+                try {
+                    const rawObj = typeof row.raw === 'string' ? JSON.parse(row.raw) : (row.raw || {});
+                    const balanceTransaction = rawObj?.payment_intent?.latest_charge?.balance_transaction;
+                    if (balanceTransaction?.net) stripeNetEur = balanceTransaction.net / 100;
+                } catch (e) {}
+                if (!stripeNetEur) {
+                    const currency = (row.currency || 'eur').toLowerCase();
+                    const amount = ['jpy', 'krw', 'vnd', 'clp', 'pyg'].includes(currency) ? parseFloat(row.amount || 0) : parseFloat(row.amount || 0) / 100;
+                    stripeNetEur = toEur(amount, currency) * 0.95;
+                }
+                push(row.created_at, row.country, { netRevenue: stripeNetEur * (1 - TAX_RATE), orders: 1 });
+            });
+            raw.paypal.forEach(row => push(row.date, row.country, {
+                netRevenue: toEur(parseFloat(row.amout || row.amount || 0), row.currency) * (1 - TAX_RATE),
+                orders: 1
+            }));
+            raw.mailerlite.forEach(row => push(row.created_at, row.country, { subscribers: 1 }));
+            (raw.telemetry || []).forEach(row => {
+                const date = row.timestamp || row.date || row.created_at;
+                if (row.stageId == '1') push(date, row.country, { demoStarts: 1 });
+                if (row.stageId == '7') push(date, row.country, { demoFinishes: 1 });
+            });
+            return rows;
+        }
+
+        function escapeOptimizerHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+        }
+
+        function optimizerMoney(value) {
+            return value === null || value === undefined || !isFinite(value) ? '-' : `€${value.toFixed(2)}`;
+        }
+
+        function optimizerRoas(value) {
+            return value === null || value === undefined || !isFinite(value) ? '-' : `${value.toFixed(2)}x`;
+        }
+
+        function optimizerActionClass(action) {
+            if (action.includes('INCREASE') || action.includes('GROW')) return 'bg-green-100 text-green-800';
+            if (action.includes('STOP') || action.includes('REDUCE') || action.includes('LOWER')) return 'bg-red-100 text-red-800';
+            if (action.includes('CREATIVE') || action.includes('DUPLICATE') || action.includes('TEST')) return 'bg-purple-100 text-purple-800';
+            if (action.includes('WAIT') || action.includes('COLLECT')) return 'bg-yellow-100 text-yellow-800';
+            return 'bg-gray-100 text-gray-700';
+        }
+
+        function loadOptimizerData(raw) {
+            if (!window.WLMetaOptimizer) return;
+            const excludedAdsets = new Set(globalDashboardState.excludeAdsets || []);
+            const metaRows = (raw.meta || []).filter(row =>
+                !excludedAdsets.has(row.adset_name || '') && optimizerDateAllowed(row.date) && optimizerCountryAllowed(row.country)
+            );
+            const activeIds = new Set(metaRows.map(row => String(row.adset_id || row.adset_name || '')).filter(Boolean));
+            const adRows = (raw.metaAds || []).filter(row => activeIds.has(String(row.adset_id || '')) && optimizerDateAllowed(row.date));
+            const adsetRows = (raw.metaAdsets || []).filter(row => row.adset_id && !excludedAdsets.has(row.adset_name || ''));
+
+            currentOptimizerReport = WLMetaOptimizer.buildOptimizerReport({
+                metaRows,
+                marketRows: buildOptimizerMarketRows(raw),
+                adsetConfigRows: adsetRows,
+                adRows,
+                events: EVENT_CALENDAR,
+                eligibleCountries: Object.keys(REGIONS),
+                startDate: globalDashboardState.startDate,
+                endDate: globalDashboardState.endDate,
+                options: {
+                    targetRoas: parseFloat(document.getElementById('optimizer-target-roas')?.value) || 2,
+                    targetCps: parseFloat(document.getElementById('optimizer-target-cps')?.value) || 2,
+                    targetLinkCtr: parseFloat(document.getElementById('optimizer-link-ctr')?.value) || 1,
+                    minLandingPageRate: parseFloat(document.getElementById('optimizer-lpv-rate')?.value) || 45,
+                    minSpend: parseFloat(document.getElementById('optimizer-min-spend')?.value) || 20,
+                    maxBudgetChangePct: parseFloat(document.getElementById('optimizer-max-change')?.value) || 15
+                },
+                dataFreshness: {
+                    meta: latestDataDate(raw.meta, 'date'),
+                    steam: latestDataDate(raw.steam, 'date'),
+                    googlePlay: latestDataDate(raw.googlePlay, 'Order Charged Date'),
+                    stripe: latestDataDate(raw.stripe, 'created_at')
+                }
+            });
+            renderOptimizer();
+        }
+
+        function renderOptimizer() {
+            const report = currentOptimizerReport;
+            if (!report) return;
+            document.getElementById('optimizer-cutoff').textContent = report.reportEnd;
+            document.getElementById('optimizer-adset-count').textContent = report.adsets.length;
+            const actionable = report.adsets.filter(adset => !['MAINTAIN', 'COLLECT DATA', 'WAIT / RECENT CHANGE', 'PAUSED / NO ACTION'].includes(adset.recommendation.action)).length;
+            document.getElementById('optimizer-action-count').textContent = actionable;
+            document.getElementById('optimizer-opportunity-count').textContent = report.opportunities.length;
+
+            document.getElementById('optimizer-adset-body').innerHTML = report.adsets.map(adset => {
+                const rec = adset.recommendation;
+                return `<tr class="border-b hover:bg-gray-50">
+                    <td class="p-3"><span class="px-2 py-1 rounded font-bold ${optimizerActionClass(rec.action)}">${escapeOptimizerHtml(rec.action)}</span></td>
+                    <td class="p-3 font-semibold">${escapeOptimizerHtml(rec.confidence)}</td>
+                    <td class="p-3 font-bold max-w-[220px] truncate" title="${escapeOptimizerHtml(adset.name)}">${escapeOptimizerHtml(adset.name)}</td>
+                    <td class="p-3 max-w-[180px] truncate" title="${escapeOptimizerHtml(adset.countries.join(', '))}">${escapeOptimizerHtml(adset.countries.join(', '))}</td>
+                    <td class="p-3 text-right">${optimizerMoney(adset.metrics7.spend)}</td>
+                    <td class="p-3 text-right">${adset.metrics7.linkCtr.toFixed(2)}%</td>
+                    <td class="p-3 text-right">${adset.metrics7.landingPageRate.toFixed(1)}%</td>
+                    <td class="p-3 text-right text-amber-700">${optimizerRoas(adset.marketRoas7)}</td>
+                    <td class="p-3 text-right text-amber-700">${optimizerRoas(adset.marketRoas28)}</td>
+                    <td class="p-3 text-right">${optimizerMoney(rec.dailyBudget)}</td>
+                    <td class="p-3 text-right">${optimizerMoney(rec.bidAmount)}</td>
+                    <td class="p-3 max-w-[420px] whitespace-normal"><strong>${escapeOptimizerHtml(rec.adjustment)}</strong><br><span class="text-gray-500">${escapeOptimizerHtml(rec.evidence.join('; '))}</span></td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="12" class="p-5 text-center text-gray-500">No eligible ad-set data. Run Meta sync to populate the new configuration and creative tabs.</td></tr>';
+
+            document.getElementById('optimizer-market-body').innerHTML = report.markets.map(market => `<tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-bold">${escapeOptimizerHtml(market.country)}</td>
+                <td class="p-3"><span class="px-2 py-1 rounded ${optimizerActionClass(market.action)}">${escapeOptimizerHtml(market.action)}</span></td>
+                <td class="p-3 text-right">${optimizerMoney(market.metrics28.spend)}</td>
+                <td class="p-3 text-right">${optimizerMoney(market.metrics28.netRevenue)}</td>
+                <td class="p-3 text-right text-amber-700">${optimizerRoas(market.metrics28.marketRoas)}</td>
+                <td class="p-3 text-right">${market.overlap}</td>
+            </tr>`).join('');
+
+            document.getElementById('optimizer-opportunity-body').innerHTML = report.opportunities.map(item => `<tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-bold">${escapeOptimizerHtml(item.country)}</td>
+                <td class="p-3">${escapeOptimizerHtml(item.action)}</td>
+                <td class="p-3">${escapeOptimizerHtml(item.confidence)}</td>
+                <td class="p-3 text-right">${optimizerMoney(item.revenue28)}</td>
+                <td class="p-3 text-right">${item.orders28}</td>
+                <td class="p-3 text-right">${item.subscribers28}</td>
+            </tr>`).join('') || '<tr><td colspan="6" class="p-5 text-center text-gray-500">No new-market candidates meet the current minimum evidence.</td></tr>';
+        }
+
+        function copyOptimizerForAI() {
+            if (!currentOptimizerReport) return;
+            const btn = document.getElementById('btn-copy-optimizer');
+            navigator.clipboard.writeText(WLMetaOptimizer.toMarkdown(currentOptimizerReport)).then(() => {
+                const previous = btn.innerText;
+                btn.innerText = 'Copied — paste into Codex';
+                setTimeout(() => { btn.innerText = previous; }, 2500);
+            });
+        }
+
         window.onload = async () => {
             // --- SECURE PIN CHECK ---
             let pin = localStorage.getItem('wl-pin');
@@ -2471,7 +2733,7 @@ let diagnosisDailyData = [];
             document.getElementById('diagnosis-thead').innerHTML = `
                 <tr class="border-b-2 border-gray-300 bg-gray-100 text-xs sm:text-sm text-gray-700">
                     <th class="p-2 sm:p-3 font-bold">Date</th>
-                    <th class="p-2 sm:p-3 font-bold">${currentDiagnosisView === 'adset' ? 'Ad Set / Region' : 'Country'}</th>
+                    <th class="p-2 sm:p-3 font-bold">${currentDiagnosisView === 'adset' ? 'Region (shared market)' : 'Country'}</th>
                     ${currentDiagnosisView === 'country' ? '<th class="p-2 sm:p-3 font-bold">Region</th>' : ''}
                     <th class="p-2 sm:p-3 text-center font-bold text-indigo-600">Events Log</th>
                     <th class="p-2 sm:p-3 text-center font-bold">Status</th>
@@ -2483,10 +2745,10 @@ let diagnosisDailyData = [];
                     <th class="p-2 sm:p-3 text-right">CPC (Trend)</th>
                     <th class="p-2 sm:p-3 text-right">Subs</th>
                     <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Opt-in % (Trend)</th>
-                    <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
-                    <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
+                    <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
                     <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
-                    <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(3D Avg)</span></th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
                     <th class="p-2 sm:p-3 text-right font-bold text-purple-700">Demo Starts</th>
 <th class="p-2 sm:p-3 text-right font-bold text-purple-700">Cost/Demo</th>
 <th class="p-2 sm:p-3 text-right font-bold text-purple-700">Demo Finish %</th>
@@ -2532,13 +2794,13 @@ let diagnosisDailyData = [];
             const btn = document.getElementById('btn-copy-diagnosis');
             const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
 
-            let output = `## Funnel Diagnosis Request\nI am experiencing a drop in ROAS. Here is my daily funnel data with 3-Day Trends. Diagnose the issues:\n\n`;
+            let output = `## Funnel Diagnosis Request\nThis is a region-level shared-market view. Store revenue is not attributed to Meta ad sets. Diagnose the daily funnel and previous-three-day trends:\n\n`;
             
             if (currentDiagnosisView === 'adset') {
-                output += `| Date | Ad Set / Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) | Demo Starts |\n`;
+                output += `| Date | Region (shared market) | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
                 output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             } else {
-                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | 3D CPM Trend | Clicks | CTR % | 3D CTR Trend | CPC | 3D CPC Trend | Subs | Opt-in % | 3D Opt-in Trend | Cost/Sub (3D Avg) | Net Rev (3D Avg) | Rev/Sub | ROAS (3D Avg) | Demo Starts |\n`;
+                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
                 output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
             }
             
@@ -2595,6 +2857,13 @@ let diagnosisDailyData = [];
                     if (json.logs) json.logs.forEach(l => logToConsole(l.msg, l.type));
                     if (endpoint === 'refresh' && json.results) Object.entries(json.results).forEach(([src, data]) => logToConsole(`[${src.toUpperCase()}] ${data?.ok === false ? 'ERROR: ' + data.msg : 'SUCCESS: Added ' + (data?.rows||0)}`, data?.ok === false ? 'error' : 'success'));
                     else logToConsole(json.ok === false ? `ERROR: ${json.msg}` : `SUCCESS: Transferred ${json.rows || 0} rows.`, json.ok === false ? 'error' : 'success');
+                    const hasSuccessfulData = endpoint === 'refresh'
+                        ? Object.values(json.results || {}).some(data => data?.ok !== false)
+                        : json.ok !== false;
+                    if (hasSuccessfulData) {
+                        logToConsole('Reloading dashboard data...', 'info');
+                        await refreshAllViews();
+                    }
                 } else logToConsole(`HTTP ERROR: ${json.error || res.statusText}`, 'error');
             } catch (err) { logToConsole(`NETWORK ERROR: ${err.message}`, 'error'); } 
             finally { btns.forEach(b => b.disabled = false); logToConsole(`<<< ${endpoint.toUpperCase()} finished.`, 'warn'); }
