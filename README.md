@@ -22,7 +22,7 @@ Set the following environment variables via the Netlify UI.  Secrets should be m
 
 ## Google Play sales setup
 
-Google Play exposes estimated sales as daily-updated monthly ZIP reports in a private Google Cloud Storage bucket. The importer reads those reports, creates the `Google_Play` tab if necessary, and stores sales and refunds as normalized transaction rows.
+Google Play exposes estimated sales as daily-updated monthly ZIP reports in a private Google Cloud Storage bucket. The importer reads those reports and stores rows in `Google_Play` using Google Play's native Estimated sales report headers. The same native schema can be pasted into the tab manually and remains compatible with future automatic syncs.
 
 1. In Play Console, open **Download reports > Financial** and copy the Cloud Storage URI shown for **Estimated sales reports**. Put the bucket portion in `GOOGLE_PLAY_REPORT_BUCKET`.
 2. In Play Console, open **Users and permissions** and invite the service account identified by `GOOGLE_SERVICE_ACCOUNT_EMAIL`.
@@ -30,7 +30,7 @@ Google Play exposes estimated sales as daily-updated monthly ZIP reports in a pr
 4. Set `GOOGLE_PLAY_PACKAGE_ID` to the package name of the game and redeploy Netlify.
 5. In the dashboard's **Sync** tab, choose a date range and click **Google Play**, or use **Update ALL**.
 
-Google's estimated-sales report contains buyer-local gross and tax amounts but not the final Google fee. `net_revenue` therefore excludes reported taxes and applies `GOOGLE_PLAY_FEE_RATE`. Refund rows are negative. For accounting-grade finalized payouts, use the monthly Google Play earnings report instead. Reports may appear several days after a sale; the daily job rechecks the last 14 days. See [Google Play's financial report documentation](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
+Google's estimated-sales report contains buyer-local gross and tax amounts but not the final Google fee. The dashboard derives net revenue from `Item Price`, applies the configured 15% fee assumption, converts `Currency of Sale` to EUR, and treats refund rows as negative. For accounting-grade finalized payouts, use the monthly Google Play earnings report instead. Reports may appear several days after a sale; the daily job rechecks the last 14 days. See [Google Play's financial report documentation](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
 
 ## Setup
 

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="/google-play.js"></script>
     
     <style>
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
@@ -664,9 +665,9 @@
 
         function forEachGooglePlayRevenue(raw, callback) {
             (raw.googlePlay || []).forEach(r => {
-                const netRevenue = parseFloat(r.net_revenue || 0);
-                if (!Number.isFinite(netRevenue)) return;
-                callback(r.date || r.charged_at, toEur(netRevenue, r.currency), r.country || 'UNKNOWN');
+                const sale = WLGooglePlay.normalizeRow(r, 0.15);
+                if (!sale) return;
+                callback(sale.date, toEur(sale.netRevenue, sale.currency), sale.country);
             });
         }
 
