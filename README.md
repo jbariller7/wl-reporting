@@ -30,7 +30,7 @@ Google Play exposes estimated sales as daily-updated monthly ZIP reports in a pr
 4. Set `GOOGLE_PLAY_PACKAGE_ID` to the package name of the game and redeploy Netlify.
 5. In the dashboard's **Sync** tab, choose a date range and click **Google Play**, or use **Update ALL**.
 
-Google's estimated-sales report contains buyer-local gross and tax amounts but not the final Google fee. The dashboard derives net revenue from `Item Price`, applies the configured 15% fee assumption, converts `Currency of Sale` to EUR, and treats refund rows as negative. For accounting-grade finalized payouts, use the monthly Google Play earnings report instead. Reports may appear several days after a sale; the daily job rechecks the last 14 days. See [Google Play's financial report documentation](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
+Google's estimated-sales report contains buyer-local gross and tax amounts but not the final Google fee. The dashboard derives net revenue from `Item Price`, applies the configured 15% Google Play fee assumption, converts `Currency of Sale` to EUR, then applies the shared 12.5% URSSAF rate. Refund rows are negative. For accounting-grade finalized payouts, use the monthly Google Play earnings report instead. Reports may appear several days after a sale; the daily job rechecks the last 14 days. See [Google Play's financial report documentation](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
 
 ## Setup
 

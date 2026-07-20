@@ -667,7 +667,8 @@
             (raw.googlePlay || []).forEach(r => {
                 const sale = WLGooglePlay.normalizeRow(r, 0.15);
                 if (!sale) return;
-                callback(sale.date, toEur(sale.netRevenue, sale.currency), sale.country);
+                const netAfterUrssaf = toEur(sale.netRevenue, sale.currency) * (1 - TAX_RATE);
+                callback(sale.date, netAfterUrssaf, sale.country);
             });
         }
 
