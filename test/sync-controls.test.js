@@ -13,6 +13,9 @@ test("Update ALL forwards force refresh and covers every active source except Ti
   assert.match(refresh, /\["stripe","meta","mailerlite","steam","google_play","telemetry"\]/);
   assert.doesNotMatch(refresh, /body\.sources\s*\|\|\s*\[[^\]]*"tiktok"/);
   assert.match(refresh, /results\.telemetry\s*=\s*await etlTelemetry\(range\)/);
+  assert.match(html, /\['fetch-meta', 'META'\]/);
+  assert.match(html, /runMetaSync\(since, until, forceRefresh\)/);
+  assert.match(html, /includeConfiguration:\s*i === chunks\.length - 1/);
 });
 
 test("MailerLite force refresh fetches and filters before deleting sheet rows", () => {

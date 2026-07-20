@@ -6,6 +6,7 @@ export const handler = async (event) => {
   const body = event.body ? JSON.parse(event.body) : {};
   const range = parseRange(body);
   range.forceRefresh = body.forceRefresh === true;
+  range.includeConfiguration = body.includeConfiguration !== false;
   const res = await etlMeta(range);
   return ok(res);
 };
