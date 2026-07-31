@@ -5,14 +5,14 @@ import fs from "node:fs";
 test("every revenue dashboard consumes Google Play data", () => {
   const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-  assert.match(html, /fetchSheet\('Google_Play'\)/);
+  assert.match(html, /fetchSheet\('Google_Play', \['B', 'D', 'J', 'K', 'Q'\]\)/);
   assert.match(html, /<script src="\/google-play\.js"><\/script>/);
   assert.match(html, /const netAfterUrssaf = toEur\(sale\.netRevenue, sale\.currency\) \* \(1 - TAX_RATE\)/);
   assert.match(html, /triggerUpdate\('fetch-google-play'\)/);
   assert.match(html, /Google Play: €\$\{totalGooglePlayNet\.toFixed\(2\)\}/);
 
   const aggregationCalls = html.match(/forEachGooglePlayRevenue\(raw, \(/g) || [];
-  assert.equal(aggregationCalls.length, 8, "main, funnel, ROAS, day-of-week, evolution, optimizer, and both diagnosis aggregations must include Google Play");
+  assert.equal(aggregationCalls.length, 8, "main, funnel, ROAS, day-of-week, evolution, the retired optimizer helper, and both diagnosis aggregations must include Google Play");
 });
 
 test("dashboard derives revenue from the native Google Play schema", async () => {
