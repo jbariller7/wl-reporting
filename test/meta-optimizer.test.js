@@ -68,14 +68,15 @@ test("optimizer keeps country revenue separate from exact ad-set metrics", () =>
   assert.match(markdown, /INCREASE CPA/);
 });
 
-test("dashboard wires the optimizer to the new read-only Meta sheets", () => {
+test("dashboard does not fetch retired optimizer sheets or unused Meta columns", () => {
   const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
   const db = fs.readFileSync(new URL("../lib/db.js", import.meta.url), "utf8");
   const meta = fs.readFileSync(new URL("../lib/meta.js", import.meta.url), "utf8");
 
-  assert.match(html, /fetchSheet\('Meta_AdSets'\)/);
-  assert.match(html, /fetchSheet\('Meta_Ads'\)/);
-  assert.match(html, /Store revenue remains shared country-market evidence/);
+  assert.doesNotMatch(html, /fetchSheet\('Meta_AdSets'/);
+  assert.doesNotMatch(html, /fetchSheet\('Meta_Ads'/);
+  assert.match(html, /fetchSheet\('Meta', \['A', 'C', 'G', 'H', 'I', 'J'\]\)/);
+  assert.doesNotMatch(html, /fetchSheet\('Meta'\)/);
   assert.match(db, /'meta_adsets': 'Meta_AdSets'/);
   assert.match(db, /options\.updateExisting/);
   assert.match(meta, /level:\s*"ad"/);
