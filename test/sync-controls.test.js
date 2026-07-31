@@ -37,10 +37,18 @@ test("MailerLite force refresh fetches and filters before deleting sheet rows", 
   assert.ok(upsertIndex > deleteIndex, "replacement rows must be written after the selected range is cleared");
 });
 
-test("MailerLite sync includes groups and dashboard excludes PDF Content only subscribers", () => {
+test("MailerLite sync maintains a lightweight dashboard-only subscriber tab", () => {
   const etl = fs.readFileSync(new URL("../lib/etl.js", import.meta.url), "utf8");
   const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  const db = fs.readFileSync(new URL("../lib/db.js", import.meta.url), "utf8");
 
   assert.match(etl, /subscribers\?limit=100&include=groups/);
-  assert.match(html, /String\(g\?\.name \|\| ''\)\.trim\(\)\.toLowerCase\(\) === 'pdf content only'/);
+  assert.match(etl, /String\(group\?\.name \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "pdf content only"/);
+  assert.match(etl, /!utmSource\.includes\("reddit"\)/);
+  assert.match(etl, /clearDateRange\("mailerlite_dashboard_subscribers"/);
+  assert.match(etl, /"mailerlite_dashboard_subscribers",[\s\S]*?\{ createSheet: true, updateExisting: true \}/);
+  assert.match(db, /'mailerlite_dashboard_subscribers': 'MailerLite_Dashboard'/);
+  assert.match(html, /fetchSheet\('MailerLite_Dashboard', \['B', 'C'\]\)/);
+  assert.doesNotMatch(html, /fetchSheet\('MailerLite',/);
+  assert.match(db, /addRows\(newRows,\s*\{\s*raw:\s*true\s*\}\)/);
 });

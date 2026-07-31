@@ -647,7 +647,9 @@
                 fetchSheet('Google_Play', ['B', 'D', 'J', 'K', 'Q']),
                 fetchSheet('Stripe', ['B', 'C', 'D', 'E', 'M', 'O']),
                 fetchSheet('Paypal', ['A', 'C', 'D', 'E']),
-                fetchSheet('MailerLite', ['D', 'E', 'F']),
+                // This lightweight derived tab contains only dashboard-eligible
+                // subscribers and avoids downloading MailerLite raw JSON.
+                fetchSheet('MailerLite_Dashboard', ['B', 'C']),
                 fetchSheet('Telemetry', ['A', 'C', 'D'])
             ]);
             GLOBAL_RAW_DATA = { meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry };
@@ -1072,28 +1074,6 @@ let globalDashboardState = {};
             const raw = await fetchAllSheets();
             if(!raw) { btn.innerText = originalText; btn.disabled = false; return; }
 
-            raw.mailerlite = raw.mailerlite.filter(r => {
-                try {
-                    // Parse the raw JSON string stored in the sheet
-                    const rawObj = typeof r.raw === 'string' ? JSON.parse(r.raw) : (r.raw || {});
-                    
-                    // Exclude Reddit
-                    const utmSource = (rawObj.fields?.utm_source || '').toLowerCase();
-                    const isReddit = utmSource.includes('reddit');
-                    
-                    // Exclude subscribers whose included MailerLite group is "PDF Content only".
-                    const groups = Array.isArray(rawObj.groups) ? rawObj.groups : [];
-                    const isPdfOnly = groups.some(g =>
-                        String(g?.name || '').trim().toLowerCase() === 'pdf content only'
-                    );
-                    
-                    // Keep the row ONLY if it's not Reddit AND not in the PDF group
-                    return !isReddit && !isPdfOnly;
-                } catch(e) {
-                    return true; // Keep row if parsing fails just in case
-                }
-            });
-   
             populateDropdowns(raw);
 
             globalDashboardState.startDate = document.getElementById('dash-start').value || "2000-01-01";
