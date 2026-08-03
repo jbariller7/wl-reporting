@@ -1,5 +1,5 @@
 import { parseRange, ok, bad } from "../../lib/util.js";
-import { etlStripe, etlMeta, etlTikTok, etlMailerLite, etlSteamSalesApi, etlGooglePlaySales, etlTelemetry } from "../../lib/etl.js";
+import { etlStripe, etlMeta, etlTikTok, etlMailerLite, etlSteamData, etlGooglePlaySales, etlTelemetry } from "../../lib/etl.js";
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") return bad("Use POST");
@@ -15,7 +15,7 @@ export const handler = async (event) => {
     if (s === "meta") results.meta = await etlMeta(range).catch(e => ({ ok: false, msg: e.message }));
     if (s === "tiktok") results.tiktok = await etlTikTok(range).catch(e => ({ ok: false, msg: e.message }));
     if (s === "mailerlite") results.mailerlite = await etlMailerLite(range).catch(e => ({ ok: false, msg: e.message }));
-    if (s === "steam") results.steam = await etlSteamSalesApi(range).catch(e => ({ ok: false, msg: e.message }));
+    if (s === "steam") results.steam = await etlSteamData(range).catch(e => ({ ok: false, msg: e.message }));
     if (s === "google_play") results.google_play = await etlGooglePlaySales(range).catch(e => ({ ok: false, msg: e.message }));
     if (s === "telemetry") results.telemetry = await etlTelemetry(range).catch(e => ({ ok: false, msg: e.message }));
   }
