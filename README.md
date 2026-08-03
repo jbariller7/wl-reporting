@@ -13,9 +13,9 @@ Set the following environment variables via the Netlify UI.  Secrets should be m
 - `TIKTOK_ACCESS_TOKEN` – access token for TikTok Business API.
 - `TIKTOK_ADVERTISER_ID` – your TikTok advertiser ID.
 - `MAILERLITE_API_KEY` – API key for the MailerLite v2 API.
-- `STEAM_APP_ID` – your Steam app ID used for wishlist CSV uploads and sales.
-- `STEAM_PUBLISHER_KEY` – (optional) new Steamworks Sales Data API key (if available).
-- `STEAM_SALES_API_URL` – (optional) base URL for Valve’s new sales API if configured for your account.
+- `STEAM_APP_ID` – your Steam app ID (or comma-separated app IDs) used for sales and wishlist reporting.
+- `STEAM_PUBLISHER_KEY` – Steamworks Financial Web API publisher key used for both sales and wishlist reporting.
+- `STEAM_SALES_API_URL` – (optional) Steam partner API base URL override; defaults to `https://partner.steam-api.com`.
 - `GOOGLE_PLAY_REPORT_BUCKET` – Google Play financial-report bucket name, without the `gs://` prefix (for example `pubsite_prod_rev_0123456789`).
 - `GOOGLE_PLAY_PACKAGE_ID` – (recommended) Android package ID to keep when the Play account contains more than one app.
 - `GOOGLE_PLAY_FEE_RATE` – (optional) estimated Google Play service-fee rate used for the live dashboard; defaults to `0.15`.
@@ -53,6 +53,14 @@ Google's estimated-sales report contains buyer-local gross and tax amounts but n
    - Add the environment variables above in your site settings.
    - Deploy; the `build:db` script will run on first build to create the tables.
 
+## Steam sales and wishlist setup
+
+The Steam sync button and the daily job now update both `Steam_Sales` and a dedicated `Steam_Wishlist` tab. No additional credential is required: Valve's wishlist endpoint uses the same Financial Web API publisher key as the sales endpoints. The key must belong to a Steamworks Financial API Group, and `STEAM_APP_ID` must contain every app to query.
+
+`Steam_Wishlist` stores one row per GMT date, app and country, with adds, deletes, purchases from wishlist, gifts and the Windows/macOS/Linux add breakdown. The dashboard treats wishlist adds as a country-level intent signal only; it never adds them to revenue or presents them as Meta-attributed conversions. Select a historical date range and click **Steam** once to backfill it. Later daily runs refresh the two most recent closed days automatically.
+
+See Valve's [IPartnerFinancialsService API documentation](https://partner.steamgames.com/doc/webapi/IPartnerFinancialsService?l=english#GetAppWishlistReporting) and [wishlist reporting notes](https://partner.steamgames.com/doc/marketing/wishlist/reporting?l=english).
+
 ## API endpoints
 
 The functions in `netlify/functions` expose the following endpoints under the `/.netlify/functions` path.
@@ -64,7 +72,7 @@ The functions in `netlify/functions` expose the following endpoints under the `/
 | `/fetch-meta`                 | POST   | Manually fetches Meta Ads insights for a date range.              |
 | `/fetch-tiktok`               | POST   | Manually fetches TikTok Ads insights for a date range.            |
 | `/fetch-mailerlite`           | POST   | Manually fetches MailerLite subscribers and groups.               |
-| `/fetch-steam-sales`          | POST   | Manually fetches Steam sales via the Sales API (optional).        |
+| `/fetch-steam-sales`          | POST   | Fetches Steam sales and daily country wishlist activity.          |
 | `/fetch-google-play`          | POST   | Imports Google Play estimated sales reports into `Google_Play`.   |
 | `/import-steam-wishlist-csv` | POST   | Parses and imports a Steam wishlist CSV report.                   |
 | `/metrics`                    | GET    | Returns aggregated metrics for the dashboard front‑end.            |
@@ -74,7 +82,7 @@ The functions in `netlify/functions` expose the following endpoints under the `/
 Two scheduled functions automate data collection:
 
 - **cron-hourly** – runs every hour to fetch Stripe, Meta, TikTok and MailerLite data for the last 48 hours.
-- **cron-daily** – runs at 04:00 UTC daily to fetch Steam sales and recheck the last 14 days of Google Play reports.
+- **cron-daily** – runs at 04:00 UTC daily to fetch Steam sales and wishlist activity and recheck the last 14 days of Google Play reports.
 
 ## Meta Ads decision optimizer
 

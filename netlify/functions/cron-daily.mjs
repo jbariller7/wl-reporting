@@ -1,18 +1,20 @@
-import { etlSteamSalesApi, etlGooglePlaySales } from "../../lib/etl.js";
+import { etlSteamData, etlGooglePlaySales } from "../../lib/etl.js";
 
 /**
  * Scheduled function that runs daily at 04:00 UTC.
- * Fetches the prior day’s Steam sales data via the Sales API.
+ * Fetches recent closed Steam sales and wishlist data.
  */
 export default async (req) => {
   const { next_run } = await req.json();
   const now = new Date();
   const yesterday = new Date(now.getTime() - 1000 * 60 * 60 * 24);
-  // Build date range covering entire prior UTC day
-  const since = new Date(yesterday.setUTCHours(0, 0, 0, 0)).toISOString();
+  const twoDaysAgo = new Date(now.getTime() - 2 * 1000 * 60 * 60 * 24);
+  // Re-read the two latest closed GMT dates so a late daily wishlist refresh
+  // cannot permanently leave a false zero in the dashboard.
+  const since = new Date(twoDaysAgo.setUTCHours(0, 0, 0, 0)).toISOString();
   const until = new Date(yesterday.setUTCHours(23, 59, 59, 999)).toISOString();
   const range = { sinceUtc: since, untilUtc: until };
-  const steam = await etlSteamSalesApi(range).catch((e) => ({ ok: false, msg: e.message }));
+  const steam = await etlSteamData(range).catch((e) => ({ ok: false, msg: e.message }));
   console.log("cron-daily steam", steam);
 
   // Estimated sales reports can lag by several days, so re-read a rolling 14-day window.

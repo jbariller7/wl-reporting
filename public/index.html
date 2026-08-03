@@ -103,7 +103,7 @@
                 <button onclick="copyForGemini()" id="btn-copy-gemini" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-4 py-1.5 rounded shadow-sm hover:bg-indigo-200 transition text-sm font-medium w-full sm:w-auto">📋 Copy data for Gemini</button>
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-6">
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-red-400">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Meta Ad Spend</div>
                     <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-spend">€0.00</div>
@@ -120,6 +120,11 @@
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-blue-400">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Subscribers</div>
                     <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-subs">0</div>
+                </div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-teal-400">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Steam Wishlist Adds</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-wishlist-adds">0</div>
+                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-cost-per-wishlist">Spend / wishlist: -</div>
                 </div>
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-yellow-400">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Cost Per Sub</div>
@@ -148,6 +153,8 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'net')">Net Revenue ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'subs')">Subscribers ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'wishlists')">Steam WL ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerWishlist')">Spend / WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoFinishRate')">Finish % ↕</th>
@@ -174,6 +181,8 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'net')">Net Revenue ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'subs')">Subscribers ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'wishlists')">Steam WL ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'costPerWishlist')">Spend / WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoFinishRate')">Finish % ↕</th>
@@ -491,6 +500,8 @@
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="net" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Rev</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="profit" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Profit</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="subs" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Subscribers</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="wishlistAdds" class="mr-1.5 custom-metric-cb" checked onchange="renderCustomChart()"> Steam Wishlist Adds</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="costPerWishlist" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Spend/Wishlist</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="demoStarts" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Demo Starts</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="costPerDemo" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Demo</label>
                 </div>
@@ -638,12 +649,13 @@
                 });
             });
 
-            const [meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
+            const [meta, steam, steamWishlist, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
                 // Only request fields consumed by the dashboard. In particular,
                 // Meta's large raw JSON payload and the Meta_Ads/Meta_AdSets tabs
                 // are intentionally not downloaded.
                 fetchSheet('Meta', ['A', 'C', 'G', 'H', 'I', 'J']),
                 fetchSheet('Steam_Sales', ['A', 'C', 'I']),
+                fetchSheet('Steam_Wishlist', ['A', 'C', 'F', 'G', 'H']),
                 fetchSheet('Google_Play', ['B', 'D', 'J', 'K', 'Q']),
                 fetchSheet('Stripe', ['B', 'C', 'D', 'E', 'M', 'O']),
                 fetchSheet('Paypal', ['A', 'C', 'D', 'E']),
@@ -652,7 +664,7 @@
                 fetchSheet('MailerLite_Dashboard', ['B', 'C']),
                 fetchSheet('Telemetry', ['A', 'C', 'D'])
             ]);
-            GLOBAL_RAW_DATA = { meta, steam, googlePlay, stripe, paypal, mailerlite, telemetry };
+            GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
@@ -1109,6 +1121,7 @@ let globalDashboardState = {};
 
             raw.meta.forEach(r => addOpts(r.country));
             raw.steam.forEach(r => addOpts(r.country));
+            (raw.steamWishlist || []).forEach(r => addOpts(r.country));
             (raw.googlePlay || []).forEach(r => addOpts(r.country));
             raw.stripe.forEach(r => addOpts(r.country));
             raw.mailerlite.forEach(r => addOpts(r.country));
@@ -1133,7 +1146,7 @@ let globalDashboardState = {};
         let dashSort = { country: { col: 'roas', desc: true }, region: { col: 'roas', desc: true } };
 
         function loadDashboardData(raw) {
-            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
+            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalWishlistAdds = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const regionAgg = {};
@@ -1156,15 +1169,15 @@ let globalDashboardState = {};
                 }
 
                 if (d >= startDate && d <= endDate && isFilteredIn && !isDateExcluded(d, excludedRanges)) {
-                   if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0, demoStarts: 0, demoFinishes: 0 };
+                   if (!dailyData[d]) dailyData[d] = { spend: 0, net: 0, subs: 0, wishlists: 0, demoStarts: 0, demoFinishes: 0 };
 dailyData[d][metric] = (dailyData[d][metric] || 0) + val;
 
-if (!countryAgg[cCode]) countryAgg[cCode] = { name: getCountryName(cCode) + ` <span class="text-xs text-gray-400 ml-1">(${cCode})</span>`, sortName: getCountryName(cCode), spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+if (!countryAgg[cCode]) countryAgg[cCode] = { name: getCountryName(cCode) + ` <span class="text-xs text-gray-400 ml-1">(${cCode})</span>`, sortName: getCountryName(cCode), spend: 0, net: 0, subs: 0, wishlists: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
 countryAgg[cCode][metric] = (countryAgg[cCode][metric] || 0) + val;
 
 const regs = regionNames.length > 0 ? regionNames : ['Other'];
 regs.forEach(reg => {
-    if (!regionAgg[reg]) regionAgg[reg] = { name: reg, sortName: reg, spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+    if (!regionAgg[reg]) regionAgg[reg] = { name: reg, sortName: reg, spend: 0, net: 0, subs: 0, wishlists: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
     regionAgg[reg][metric] = (regionAgg[reg][metric] || 0) + val;
 });
                     
@@ -1176,6 +1189,7 @@ regs.forEach(reg => {
                         else totalOtherNet += val;
                     }
                     if (metric === 'subs') totalSubs += val;
+                    if (metric === 'wishlists') totalWishlistAdds += val;
                     if (metric === 'imp') totalImp += val;
                     if (metric === 'clicks') totalClicks += val;
                     if (metric === 'demoStarts') totalDemoStarts += val;
@@ -1191,6 +1205,7 @@ regs.forEach(reg => {
                 }
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, 'mailerlite'));
+            (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country, 'steam_wishlist'));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, 'steam'));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, 'google_play'));
             raw.stripe.forEach(r => {
@@ -1243,11 +1258,14 @@ regs.forEach(reg => {
             }
 
             document.getElementById('kpi-subs').innerText = totalSubs;
+            document.getElementById('kpi-wishlist-adds').innerText = totalWishlistAdds;
+            document.getElementById('kpi-cost-per-wishlist').innerText = totalWishlistAdds > 0 ? `Spend / wishlist: €${(totalSpend / totalWishlistAdds).toFixed(2)}` : 'Spend / wishlist: -';
             document.getElementById('kpi-cps').innerText = totalSubs > 0 ? `€${(totalSpend / totalSubs).toFixed(2)}` : '€0.00';
             document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : '0.00x';
 
            const calcMetrics = (c) => {
                 c.cps = c.subs > 0 ? c.spend / c.subs : 0;
+                c.costPerWishlist = c.wishlists > 0 ? c.spend / c.wishlists : 0;
                 c.roas = c.spend > 0 ? c.net / c.spend : 0;
                 c.cpm = c.imp > 0 ? (c.spend / c.imp) * 1000 : 0;
                 c.cpc = c.clicks > 0 ? c.spend / c.clicks : 0;
@@ -1258,10 +1276,10 @@ regs.forEach(reg => {
                 return c;
             };
 
-           dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
-            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.demoStarts > 0);
+           dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.demoStarts > 0);
+            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.demoStarts > 0);
             
-            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
+            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, wishlists: totalWishlistAdds, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
             
             renderDashTables();
 
@@ -1280,7 +1298,7 @@ regs.forEach(reg => {
                 options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } } }
             });
 
-            globalDashboardState.totalSpend = totalSpend; globalDashboardState.totalNet = totalNet; globalDashboardState.totalSubs = totalSubs; globalDashboardState.totalImp = totalImp; globalDashboardState.totalClicks = totalClicks; globalDashboardState.netProfit = netProfit;
+            globalDashboardState.totalSpend = totalSpend; globalDashboardState.totalNet = totalNet; globalDashboardState.totalSubs = totalSubs; globalDashboardState.totalWishlistAdds = totalWishlistAdds; globalDashboardState.totalImp = totalImp; globalDashboardState.totalClicks = totalClicks; globalDashboardState.netProfit = netProfit;
         }
 
         function sortDashTable(type, col) {
@@ -1317,6 +1335,8 @@ regs.forEach(reg => {
                             <td class="p-2 sm:p-3 text-right">€${g.net.toFixed(2)}</td>
                             <td class="p-2 sm:p-3 text-right">${g.subs}</td>
                             <td class="p-2 sm:p-3 text-right">€${g.cps.toFixed(2)}</td>
+                            <td class="p-2 sm:p-3 text-right text-teal-700">${g.wishlists || 0}</td>
+                            <td class="p-2 sm:p-3 text-right text-teal-800">${g.wishlists > 0 ? `€${g.costPerWishlist.toFixed(2)}` : '-'}</td>
                             <td class="p-2 sm:p-3 text-right text-purple-600">${g.demoStarts || 0}</td>
                             <td class="p-2 sm:p-3 text-right text-purple-800">€${(g.costPerDemo || 0).toFixed(2)}</td>
                             <td class="p-2 sm:p-3 text-right text-purple-600">${(g.demoFinishRate || 0).toFixed(1)}%</td>
@@ -1334,6 +1354,8 @@ regs.forEach(reg => {
                         <td class="p-2 sm:p-3 text-right text-green-600">€${c.net.toFixed(2)}</td>
                         <td class="p-2 sm:p-3 text-right text-blue-600 font-bold">${c.subs}</td>
                         <td class="p-2 sm:p-3 text-right text-gray-800 font-medium" style="background-color: ${c.subs > 0 ? getRankColor(c.cps, sCps, false) : 'transparent'}">€${c.cps.toFixed(2)}</td>
+                        <td class="p-2 sm:p-3 text-right text-teal-700 font-bold">${c.wishlists || 0}</td>
+                        <td class="p-2 sm:p-3 text-right text-teal-800 font-medium">${c.wishlists > 0 ? `€${c.costPerWishlist.toFixed(2)}` : '-'}</td>
                         <td class="p-2 sm:p-3 text-right text-purple-600 font-bold">${c.demoStarts}</td>
                         <td class="p-2 sm:p-3 text-right text-purple-800 font-medium">€${c.costPerDemo.toFixed(2)}</td>
                         <td class="p-2 sm:p-3 text-right text-purple-600 font-medium">${c.demoFinishRate.toFixed(1)}%</td>
@@ -1814,7 +1836,7 @@ function loadEvolutionData(raw) {
             const allDates = new Set();
 
             const initDay = (obj, d) => {
-                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, wishlistAdds: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
             };
 
             const addMetric = (date, metric, val, countryCode) => {
@@ -1857,6 +1879,7 @@ function loadEvolutionData(raw) {
                 }
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlistAdds', parseInt(r.wishlist_adds || 0), r.country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
@@ -1888,17 +1911,19 @@ function loadEvolutionData(raw) {
             let sortedDates = Array.from(allDates).sort();
 
             const getMetrics = (dataObj, date) => {
-                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, wishlistAdds: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
                 const roas = day.spend > 0 ? day.net / day.spend : 0;
                 return {
                     spend: day.spend,
                     net: day.net,
                     profit: day.net - day.spend,
                     subs: day.subs,
+                    wishlistAdds: day.wishlistAdds || 0,
                     demoStarts: day.demoStarts || 0,
                     roas: roas,
                     inv_roas: roas > 0 ? 1 / roas : 0,
                     cps: day.subs > 0 ? day.spend / day.subs : 0,
+                    costPerWishlist: day.wishlistAdds > 0 ? day.spend / day.wishlistAdds : 0,
                     costPerDemo: day.demoStarts > 0 ? day.spend / day.demoStarts : 0,
                     cpm: day.imp > 0 ? (day.spend / day.imp) * 1000 : 0,
                     cpc: day.clicks > 0 ? day.spend / day.clicks : 0
@@ -1970,6 +1995,8 @@ function loadEvolutionData(raw) {
                 net: mapData('net', false),
                 profit: mapData('profit', false),
                 subs: mapData('subs', false),
+                wishlistAdds: mapData('wishlistAdds', false),
+                costPerWishlist: mapData('costPerWishlist', false),
                 demoStarts: mapData('demoStarts', false),
                 costPerDemo: mapData('costPerDemo', false)
             };
@@ -2041,11 +2068,13 @@ function renderCustomChart() {
             const labelsMap = {
                 spend: 'Ad Spend', roas: 'ROAS', inv_roas: 'Inverted ROAS', 
                 cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', profit: 'Net Profit', subs: 'Subscribers',
+                wishlistAdds: 'Steam Wishlist Adds', costPerWishlist: 'Spend/Wishlist',
                 demoStarts: 'Demo Starts', costPerDemo: 'Cost/Demo'
             };
             const colorsMap = {
                 spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
                 cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9',
+                wishlistAdds: '#0d9488', costPerWishlist: '#115e59',
                 demoStarts: '#8b5cf6', costPerDemo: '#f97316'
             };
 const datasets = selectedMetrics.map(key => {
@@ -2092,9 +2121,9 @@ const datasets = selectedMetrics.map(key => {
                                     
                                     // Format the tooltip string cleanly
                                     let formattedVal = rawVal.toFixed(2);
-                                    if (key === 'subs' || key === 'demoStarts') formattedVal = Math.round(rawVal);
+                                    if (key === 'subs' || key === 'demoStarts' || key === 'wishlistAdds') formattedVal = Math.round(rawVal);
                                     if (key === 'roas' || key === 'inv_roas') formattedVal += 'x';
-                                    else if (key !== 'subs' && key !== 'demoStarts') formattedVal = '€' + formattedVal;
+                                    else if (key !== 'subs' && key !== 'demoStarts' && key !== 'wishlistAdds') formattedVal = '€' + formattedVal;
 
                                     return `${context.dataset.label}: ${formattedVal} (Index: ${context.parsed.y.toFixed(0)}%)`;
                                 }
@@ -2180,9 +2209,11 @@ const datasets = selectedMetrics.map(key => {
             const roas = globalDashboardState.totalSpend > 0 ? (globalDashboardState.totalNet / globalDashboardState.totalSpend).toFixed(2) : '0.00';
             const globalCpm = globalDashboardState.totalImp > 0 ? (globalDashboardState.totalSpend / globalDashboardState.totalImp) * 1000 : 0;
             const globalCpc = globalDashboardState.totalClicks > 0 ? globalDashboardState.totalSpend / globalDashboardState.totalClicks : 0;
+            const totalWishlistAdds = globalDashboardState.totalWishlistAdds || 0;
+            const costPerWishlist = totalWishlistAdds > 0 ? globalDashboardState.totalSpend / totalWishlistAdds : 0;
 
-            let output = `## WonderLang Ad Spend & Revenue Analysis\n\n### Dashboard Filter State\n- **Date Range:** ${globalDashboardState.startDate} to ${globalDashboardState.endDate}\n- **Excluded Dates:** ${exDates}\n- **Excluded Ad Sets:** ${exAds}\n- **Country Filter:** ${globalDashboardState.filterSelection}\n\n### Top-Level KPIs\n- **Total Ad Spend:** €${globalDashboardState.totalSpend.toFixed(2)}\n- **Total Net Revenue:** €${globalDashboardState.totalNet.toFixed(2)}\n- **Net Profit:** €${globalDashboardState.netProfit.toFixed(2)}\n- **New Subscribers:** ${globalDashboardState.totalSubs}\n- **Cost per Sub:** €${cps}\n- **ROAS:** ${roas}x\n- **Global CPM:** €${globalCpm.toFixed(2)}\n- **Global CPC:** €${globalCpc.toFixed(2)}\n\n### Regional Performance Breakdown\n| Country | Region | Ad Spend (€) | Net Rev (€) | Subs | Cost/Sub (€) | ROAS (x) | CPM (€) | CPC (€) |\n|---------|--------|--------------|-------------|------|--------------|----------|---------|---------|\n`;
-            dashCountryData.forEach(c => output += `| ${c.sortName} | ${c.region || ''} | ${c.spend.toFixed(2)} | ${c.net.toFixed(2)} | ${c.subs} | ${c.cps.toFixed(2)} | ${c.roas.toFixed(2)} | ${c.cpm.toFixed(2)} | ${c.cpc.toFixed(2)} |\n`);
+            let output = `## WonderLang Ad Spend & Revenue Analysis\n\nSteam wishlist adds are a country-level commercial-intent signal and are not directly attributed to Meta ad sets.\n\n### Dashboard Filter State\n- **Date Range:** ${globalDashboardState.startDate} to ${globalDashboardState.endDate}\n- **Excluded Dates:** ${exDates}\n- **Excluded Ad Sets:** ${exAds}\n- **Country Filter:** ${globalDashboardState.filterSelection}\n\n### Top-Level KPIs\n- **Total Ad Spend:** €${globalDashboardState.totalSpend.toFixed(2)}\n- **Total Net Revenue:** €${globalDashboardState.totalNet.toFixed(2)}\n- **Net Profit:** €${globalDashboardState.netProfit.toFixed(2)}\n- **New Subscribers:** ${globalDashboardState.totalSubs}\n- **Cost per Sub:** €${cps}\n- **Steam Wishlist Adds:** ${totalWishlistAdds}\n- **Spend per Steam Wishlist Add:** €${costPerWishlist.toFixed(2)}\n- **ROAS:** ${roas}x\n- **Global CPM:** €${globalCpm.toFixed(2)}\n- **Global CPC:** €${globalCpc.toFixed(2)}\n\n### Regional Performance Breakdown\n| Country | Region | Ad Spend (€) | Net Rev (€) | Subs | Cost/Sub (€) | Steam WL Adds | Spend/WL (€) | ROAS (x) | CPM (€) | CPC (€) |\n|---------|--------|--------------|-------------|------|--------------|---------------|--------------|----------|---------|---------|\n`;
+            dashCountryData.forEach(c => output += `| ${c.sortName} | ${c.region || ''} | ${c.spend.toFixed(2)} | ${c.net.toFixed(2)} | ${c.subs} | ${c.cps.toFixed(2)} | ${c.wishlists || 0} | ${c.wishlists > 0 ? c.costPerWishlist.toFixed(2) : '-'} | ${c.roas.toFixed(2)} | ${c.cpm.toFixed(2)} | ${c.cpc.toFixed(2)} |\n`);
 
             navigator.clipboard.writeText(output).then(() => {
                 const oldText = btn.innerText; btn.innerText = "✅ Copied to clipboard!";
@@ -2445,7 +2476,7 @@ let diagnosisDailyData = [];
                 if (!date || isNaN(val)) return;
                 const { keys } = getKeysToUpdate(date, (cCode || 'UNKNOWN').toUpperCase());
                 keys.forEach(({ key }) => {
-                    if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
+                    if (!allTimeAgg[key]) allTimeAgg[key] = { spend: 0, imp: 0, clicks: 0, subs: 0, wishlists: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
                     allTimeAgg[key][metric] = (allTimeAgg[key][metric] || 0) + val;
                 });
             };
@@ -2458,6 +2489,7 @@ let diagnosisDailyData = [];
                 }
             });
             raw.mailerlite.forEach(r => addAllTime(r.created_at, 'subs', 1, r.country));
+            (raw.steamWishlist || []).forEach(r => addAllTime(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country));
             raw.steam.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addAllTime(date, 'net', net, country));
             raw.stripe.forEach(r => {
@@ -2498,7 +2530,7 @@ let diagnosisDailyData = [];
                 if (!isFilteredIn) return;
 
                 keys.forEach(({ key, groupKey, region, country }) => {
-                    if (!dailyAgg[key]) dailyAgg[key] = { date: d, groupKey, country, region, spend: 0, imp: 0, clicks: 0, subs: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
+                    if (!dailyAgg[key]) dailyAgg[key] = { date: d, groupKey, country, region, spend: 0, imp: 0, clicks: 0, subs: 0, wishlists: 0, net: 0, demoStarts: 0, demoFinishes: 0 };
                     dailyAgg[key][metric] = (dailyAgg[key][metric] || 0) + val;
                 });
             };
@@ -2511,6 +2543,7 @@ let diagnosisDailyData = [];
                 }
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
+            (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
@@ -2543,6 +2576,7 @@ let diagnosisDailyData = [];
                 d.ctr = d.imp > 0 ? (d.clicks / d.imp) * 100 : 0;
                 d.optin = d.clicks > 0 ? (d.subs / d.clicks) * 100 : 0;
                 d.cps = d.subs > 0 ? (d.spend / d.subs) : (d.spend > 0 ? Infinity : 0);
+                d.costPerWishlist = d.wishlists > 0 ? d.spend / d.wishlists : (d.spend > 0 ? Infinity : 0);
                 d.revps = d.subs > 0 ? (d.net / d.subs) : 0;
                 d.roas = d.spend > 0 ? (d.net / d.spend) : 0;
                 d.demoStarts = d.demoStarts || 0;
@@ -2552,7 +2586,7 @@ let diagnosisDailyData = [];
                 // Load Events for this row
                 d.events = EVENT_CALENDAR.filter(e => e.date === d.date && (e.target === 'ALL' || e.target === d.groupKey)).map(e => e.text).join('; ');
 
-                let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0, pNet = 0;
+                let pSpend = 0, pImp = 0, pClicks = 0, pSubs = 0, pWishlists = 0, pNet = 0;
                 let currDate = new Date(d.date);
                 for(let i = 0; i < 3; i++) {
                     currDate.setDate(currDate.getDate() - 1);
@@ -2562,15 +2596,18 @@ let diagnosisDailyData = [];
                         pImp += allTimeAgg[pKey].imp;
                         pClicks += allTimeAgg[pKey].clicks;
                         pSubs += allTimeAgg[pKey].subs;
+                        pWishlists += allTimeAgg[pKey].wishlists || 0;
                         pNet += allTimeAgg[pKey].net;
                     }
                 }
 
                 const rSpend = d.spend + pSpend;
                 const rSubs = d.subs + pSubs;
+                const rWishlists = d.wishlists + pWishlists;
                 const rNet = d.net + pNet;
                 
                 d.cps_3d_avg = rSubs > 0 ? rSpend / rSubs : (rSpend > 0 ? Infinity : 0);
+                d.cost_per_wishlist_3d_avg = rWishlists > 0 ? rSpend / rWishlists : (rSpend > 0 ? Infinity : 0);
                 d.net_3d_avg = rNet / 4; 
                 d.roas_3d_avg = rSpend > 0 ? rNet / rSpend : 0;
 
@@ -2626,7 +2663,7 @@ let diagnosisDailyData = [];
                 }
 
                 return d;
-            }).filter(d => d.spend > 0 || d.net > 0 || d.subs > 0)
+            }).filter(d => d.spend > 0 || d.net > 0 || d.subs > 0 || d.wishlists > 0)
               .sort((a, b) => {
                   if (a.date !== b.date) return b.date.localeCompare(a.date);
                   return b.spend - a.spend;
@@ -2657,6 +2694,8 @@ let diagnosisDailyData = [];
                     <th class="p-2 sm:p-3 text-right">Subs</th>
                     <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Opt-in % (Trend)</th>
                     <th class="p-2 sm:p-3 text-right font-bold text-gray-800">Cost/Sub<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-teal-700">Steam WL</th>
+                    <th class="p-2 sm:p-3 text-right font-bold text-teal-800">Spend/WL<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
                     <th class="p-2 sm:p-3 text-right">Net Rev<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
                     <th class="p-2 sm:p-3 text-right text-blue-700 font-bold">Rev/Sub</th>
                     <th class="p-2 sm:p-3 text-right font-bold text-purple-700">ROAS<br><span class="text-[10px] text-gray-500 font-normal">(4D Rolling)</span></th>
@@ -2685,6 +2724,11 @@ let diagnosisDailyData = [];
                         €${d.cps === Infinity ? '∞' : d.cps.toFixed(2)}<br>
                         <span class="text-[10px] font-medium text-orange-600">€${d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2)}</span>
                     </td>
+                    <td class="p-1.5 sm:p-2 text-right text-teal-700 font-bold">${d.wishlists || 0}</td>
+                    <td class="p-1.5 sm:p-2 text-right leading-tight font-bold text-teal-800">
+                        ${d.costPerWishlist === Infinity ? '∞' : `€${d.costPerWishlist.toFixed(2)}`}<br>
+                        <span class="text-[10px] font-medium text-gray-500">${d.cost_per_wishlist_3d_avg === Infinity ? '∞' : `€${d.cost_per_wishlist_3d_avg.toFixed(2)}`}</span>
+                    </td>
                     <td class="p-1.5 sm:p-2 text-right leading-tight text-green-600">
                         €${d.net.toFixed(2)}<br>
                         <span class="text-[10px] font-medium text-gray-500">€${d.net_3d_avg.toFixed(2)}</span>
@@ -2705,26 +2749,28 @@ let diagnosisDailyData = [];
             const btn = document.getElementById('btn-copy-diagnosis');
             const tTrend = (val) => val === 0 ? '(0.0%)' : `(${val > 0 ? '🔺 +' : '🔻 '}${val.toFixed(1)}%)`;
 
-            let output = `## Funnel Diagnosis Request\nThis is a region-level shared-market view. Store revenue is not attributed to Meta ad sets. Diagnose the daily funnel and previous-three-day trends:\n\n`;
+            let output = `## Funnel Diagnosis Request\nThis is a region-level shared-market view. Store revenue and Steam wishlist adds are country-level commercial signals, not Meta-attributed ad-set conversions. Diagnose the daily funnel and previous-three-day trends:\n\n`;
             
             if (currentDiagnosisView === 'adset') {
-                output += `| Date | Region (shared market) | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
-                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+                output += `| Date | Region (shared market) | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Steam Wishlist Adds | Spend/Wishlist (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
+                output += `|${Array(22).fill('---').join('|')}|\n`;
             } else {
-                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
-                output += `|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+                output += `| Date | Country | Region | Events | Spend (€) | Imp | CPM | Prev-3D CPM Trend | Clicks | CTR % | Prev-3D CTR Trend | CPC | Prev-3D CPC Trend | Subs | Opt-in % | Prev-3D Opt-in Trend | Cost/Sub (4D Rolling) | Steam Wishlist Adds | Spend/Wishlist (4D Rolling) | Net Rev (4D Rolling) | Rev/Sub | ROAS (4D Rolling) | Demo Starts |\n`;
+                output += `|${Array(23).fill('---').join('|')}|\n`;
             }
             
             diagnosisDailyData.forEach(d => {
                 const cpsStr = d.cps === Infinity ? '∞' : d.cps.toFixed(2);
                 const cps3dStr = d.cps_3d_avg === Infinity ? '∞' : d.cps_3d_avg.toFixed(2);
+                const costWishlistStr = d.costPerWishlist === Infinity ? '∞' : d.costPerWishlist.toFixed(2);
+                const costWishlist3dStr = d.cost_per_wishlist_3d_avg === Infinity ? '∞' : d.cost_per_wishlist_3d_avg.toFixed(2);
                 const cleanStatus = d.status.replace(/<br>/g, ' ');
                 const cleanEvents = d.events || '-';
 
                 if (currentDiagnosisView === 'adset') {
-                    output += `| ${d.date} | ${d.groupKey} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
+                    output += `| ${d.date} | ${d.groupKey} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.wishlists || 0} | ${costWishlistStr} (${costWishlist3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
                 } else {
-                    output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
+                    output += `| ${d.date} | ${d.country} | ${d.region} | ${cleanEvents} | ${d.spend.toFixed(2)} | ${d.imp} | ${d.cpm.toFixed(2)} | ${tTrend(d.cpm_trend)} | ${d.clicks} | ${d.ctr.toFixed(2)} | ${tTrend(d.ctr_trend)} | ${d.cpc.toFixed(2)} | ${tTrend(d.cpc_trend)} | ${d.subs} | ${d.optin.toFixed(2)} | ${tTrend(d.optin_trend)} | ${cpsStr} (${cps3dStr}) | ${d.wishlists || 0} | ${costWishlistStr} (${costWishlist3dStr}) | ${d.net.toFixed(2)} (${d.net_3d_avg.toFixed(2)}) | ${d.revps.toFixed(2)} | ${d.roas.toFixed(2)}x (${d.roas_3d_avg.toFixed(2)}x) | ${d.demoStarts || 0} |\n`;
                 }
             });
 
