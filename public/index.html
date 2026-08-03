@@ -2819,9 +2819,9 @@ let diagnosisDailyData = [];
         }
 
         async function runMetaSync(since, until, forceRefresh) {
-            const chunks = WLDataSync.buildDateChunks(since, until, 3);
+            const chunks = WLDataSync.buildDateChunks(since, until, 1);
             let totalRows = 0;
-            logToConsole(`[META] Splitting work into ${chunks.length} date part${chunks.length === 1 ? '' : 's'}, with insights and creatives stored separately.`, 'info');
+            logToConsole(`[META] Splitting work into ${chunks.length} one-day part${chunks.length === 1 ? '' : 's'}, with insights and creatives stored separately to prevent server timeouts.`, 'info');
 
             logToConsole('[META] Repairing existing date/account cell types...', 'info');
             const repairResult = await runSingleSync('fetch-meta', {

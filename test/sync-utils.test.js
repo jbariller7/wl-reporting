@@ -14,6 +14,14 @@ test("Meta date ranges are split into inclusive seven-day chunks", () => {
   ]);
 });
 
+test("one-day Meta chunks never combine separate reporting dates", () => {
+  assert.deepEqual(buildDateChunks("2026-08-01", "2026-08-03", 1), [
+    { since: "2026-08-01", until: "2026-08-01" },
+    { since: "2026-08-02", until: "2026-08-02" },
+    { since: "2026-08-03", until: "2026-08-03" }
+  ]);
+});
+
 test("HTML platform errors become a useful timeout message", async () => {
   const response = new Response("<HTML><HEAD><TITLE>Gateway Timeout</TITLE></HEAD></HTML>", {
     status: 504,
