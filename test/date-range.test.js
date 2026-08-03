@@ -29,6 +29,12 @@ test("reversed manual ranges are normalized before reaching an API", () => {
 test("Google Play sheet dates support the native day-first format", () => {
   assert.equal(normalizeSheetDateValue("05/07/2026"), "2026-07-05");
   assert.equal(normalizeSheetDateValue("2026-07-19"), "2026-07-19");
+  assert.equal(normalizeSheetDateValue("7/17/2026 09:30:00"), "2026-07-17");
+});
+
+test("Google Sheets date serials are normalized for force refresh deletion", () => {
+  assert.equal(normalizeSheetDateValue(46220), "2026-07-17");
+  assert.equal(normalizeSheetDateValue("46234.5"), "2026-07-31");
 });
 
 test("adjacent sheet updates with the same columns are vertically coalesced", () => {
