@@ -5,7 +5,8 @@ import fs from "node:fs";
 test("every revenue dashboard consumes Google Play data", () => {
   const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-  assert.match(html, /fetchSheet\('Google_Play', \['B', 'D', 'J', 'K', 'Q'\]\)/);
+  assert.match(html, /fetch\('\/.netlify\/functions\/dashboard-data'/);
+  assert.match(html, /fetchExportSheet\('270734933'\)/);
   assert.match(html, /<script src="\/google-play\.js"><\/script>/);
   assert.match(html, /const netAfterUrssaf = toEur\(sale\.netRevenue, sale\.currency\) \* \(1 - TAX_RATE\)/);
   assert.match(html, /triggerUpdate\('fetch-google-play'\)/);
@@ -40,4 +41,11 @@ test("dashboard derives revenue from the native Google Play schema", async () =>
     "Country of Buyer": "ES"
   }, 0.15);
   assert.ok(refund.netRevenue < 0);
+});
+
+test("dashboard de-duplicates equivalent Google Play report rows", () => {
+  const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.match(html, /const seenTransactions = new Set\(\)/);
+  assert.match(html, /WLGooglePlay\.parseNumber\(r\['Charged Amount'\]\)/);
+  assert.match(html, /seenTransactions\.has\(transactionKey\)/);
 });
