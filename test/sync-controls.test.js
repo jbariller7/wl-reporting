@@ -49,7 +49,8 @@ test("MailerLite sync maintains a lightweight dashboard-only subscriber tab", ()
   assert.match(etl, /clearDateRange\("mailerlite_dashboard_subscribers"/);
   assert.match(etl, /"mailerlite_dashboard_subscribers",[\s\S]*?\{ createSheet: true, updateExisting: true \}/);
   assert.match(db, /'mailerlite_dashboard_subscribers': 'MailerLite_Dashboard'/);
-  assert.match(html, /fetchSheet\('MailerLite_Dashboard', \['B', 'C'\]\)/);
+  assert.match(html, /fetch\('\/.netlify\/functions\/dashboard-data'/);
+  assert.match(html, /fetchExportSheet\('1828017678'\)/);
   assert.doesNotMatch(html, /fetchSheet\('MailerLite',/);
   assert.match(db, /addRows\(newRows,\s*\{\s*raw:\s*true\s*\}\)/);
 });

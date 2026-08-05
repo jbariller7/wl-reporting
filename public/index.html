@@ -649,21 +649,49 @@
                 });
             });
 
-            const [meta, steam, steamWishlist, googlePlay, stripe, paypal, mailerlite, telemetry] = await Promise.all([
+            const fetchExportSheet = async (gid) => new Promise((resolve) => {
+                Papa.parse(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`, {
+                    download: true, header: true, skipEmptyLines: true,
+                    complete: (res) => resolve(res.data), error: () => resolve([])
+                });
+            });
+
+            const fetchDashboardSources = async () => {
+                try {
+                    const response = await fetch('/.netlify/functions/dashboard-data', { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    if (!Array.isArray(data.steam) || !Array.isArray(data.googlePlay) || !Array.isArray(data.mailerlite)) {
+                        throw new Error('invalid response');
+                    }
+                    return data;
+                } catch (error) {
+                    console.warn(`Dashboard source API unavailable (${error.message}); using direct sheet exports.`);
+                    const [steam, googlePlay, mailerlite] = await Promise.all([
+                        fetchExportSheet('1605998113'),
+                        fetchExportSheet('270734933'),
+                        fetchExportSheet('1828017678')
+                    ]);
+                    return { steam, googlePlay, mailerlite };
+                }
+            };
+
+            const [meta, steamWishlist, stripe, paypal, telemetry, dashboardSources] = await Promise.all([
                 // Only request fields consumed by the dashboard. In particular,
                 // Meta's large raw JSON payload and the Meta_Ads/Meta_AdSets tabs
                 // are intentionally not downloaded.
                 fetchSheet('Meta', ['A', 'C', 'G', 'H', 'I', 'J']),
-                fetchSheet('Steam_Sales', ['A', 'C', 'I']),
                 fetchSheet('Steam_Wishlist', ['A', 'C', 'F', 'G', 'H']),
-                fetchSheet('Google_Play', ['B', 'D', 'J', 'K', 'Q']),
                 fetchSheet('Stripe', ['B', 'C', 'D', 'E', 'M', 'O']),
                 fetchSheet('Paypal', ['A', 'C', 'D', 'E']),
-                // This lightweight derived tab contains only dashboard-eligible
-                // subscribers and avoids downloading MailerLite raw JSON.
-                fetchSheet('MailerLite_Dashboard', ['B', 'C']),
-                fetchSheet('Telemetry', ['A', 'C', 'D'])
+                fetchSheet('Telemetry', ['A', 'C', 'D']),
+                // These sources contain mixed Sheets cell types. The authenticated
+                // endpoint reads their real values without GViz silently blanking
+                // recent dates or amounts, and repairs a stale subscriber cache
+                // from recent raw MailerLite rows on the server.
+                fetchDashboardSources()
             ]);
+            const { steam, googlePlay, mailerlite } = dashboardSources;
             GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
@@ -691,9 +719,19 @@
         }
 
         function forEachGooglePlayRevenue(raw, callback) {
+            const seenTransactions = new Set();
             (raw.googlePlay || []).forEach(r => {
                 const sale = WLGooglePlay.normalizeRow(r, 0.15);
                 if (!sale) return;
+                const transactionKey = [
+                    r['Order Number'] || '',
+                    r['Order Charged Timestamp'] || '',
+                    r['Financial Status'] || '',
+                    r['SKU ID'] || '',
+                    WLGooglePlay.parseNumber(r['Charged Amount'])
+                ].join('|');
+                if (r['Order Number'] && seenTransactions.has(transactionKey)) return;
+                if (r['Order Number']) seenTransactions.add(transactionKey);
                 const netAfterUrssaf = toEur(sale.netRevenue, sale.currency) * (1 - TAX_RATE);
                 callback(sale.date, netAfterUrssaf, sale.country, sale.units);
             });
@@ -707,6 +745,10 @@
 
         function normalizeDate(dStr) {
             if (!dStr) return null;
+            const serial = Number(dStr);
+            if (Number.isFinite(serial) && serial >= 1 && serial < 100000) {
+                return new Date((Math.floor(serial) - 25569) * 86400000).toISOString().slice(0, 10);
+            }
             if (dStr.includes('/')) {
                 const parts = dStr.split('/');
                 if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
