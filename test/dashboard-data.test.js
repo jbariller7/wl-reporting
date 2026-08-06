@@ -2,12 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
-  findSubscriberRepairPartitions,
-  groupContiguousRowNumbers,
   isDashboardEligibleSubscriber,
   latestRowDate,
   mergeDashboardSubscribers,
-  subscriberPartitionKey
+  recentSubscriberRepairWindow
 } from "../lib/dashboard-data.js";
 
 test("dashboard loader avoids GViz for mixed-type purchase dates", () => {
@@ -37,29 +35,28 @@ test("recent raw MailerLite rows repair a stale derived subscriber tab", () => {
   assert.equal(isDashboardEligibleSubscriber(raw[2]), false);
 });
 
-test("internal MailerLite date-country gaps are repaired even when newer derived dates exist", () => {
-  const derived = [
-    { subscriber_id: "1", created_at: "2026-07-31 10:00:00", country: "US" },
-    { subscriber_id: "5", created_at: "2026-08-04 10:00:00", country: "US" }
-  ];
+test("recent MailerLite repair uses one bounded row window and includes partially derived dates", () => {
   const rawDates = [
     { __rowNumber: 10, created_at: "2026-08-01 10:00:00", country: "DE" },
     { __rowNumber: 11, created_at: "2026-08-01 11:00:00", country: "DE" },
     { __rowNumber: 12, created_at: "2026-08-02 10:00:00", country: "DE" },
-    { __rowNumber: 20, created_at: "2026-08-03 10:00:00", country: "DE" },
-    { __rowNumber: 21, created_at: "2026-08-04 10:00:00", country: "US" }
+    { __rowNumber: 20, created_at: "2026-07-10 10:00:00", country: "US" },
+    { __rowNumber: 21, created_at: "2026-08-06 10:00:00", country: "US" },
+    { __rowNumber: 22, created_at: "2026-08-07 10:00:00", country: "US" },
+    { __rowNumber: 23, created_at: "2026-07-17 10:00:00", country: "FR" }
   ];
 
-  assert.deepEqual(findSubscriberRepairPartitions(derived, rawDates), [
-    "2026-08-01|DE",
-    "2026-08-02|DE",
-    "2026-08-03|DE"
-  ]);
-  assert.equal(subscriberPartitionKey(rawDates[0]), "2026-08-01|DE");
-  assert.deepEqual(groupContiguousRowNumbers([10, 11, 12, 20]), [
-    { startRow: 10, endRow: 12 },
-    { startRow: 20, endRow: 20 }
-  ]);
+  assert.deepEqual(recentSubscriberRepairWindow(rawDates, "2026-08-06"), {
+    cutoffDate: "2026-07-17",
+    latestDate: "2026-08-06",
+    startRow: 10,
+    endRow: 23,
+    rowNumbers: [10, 11, 12, 21, 23]
+  });
+
+  const handler = fs.readFileSync(new URL("../netlify/functions/dashboard-data.js", import.meta.url), "utf8");
+  assert.match(handler, /startRow: repairWindow\.startRow, endRow: repairWindow\.endRow/);
+  assert.doesNotMatch(handler, /Promise\.all\(rowRanges/);
 });
 
 test("sync writes dashboard-critical date and amount columns as typed cells", () => {

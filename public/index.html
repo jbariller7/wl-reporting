@@ -97,6 +97,8 @@
             </div>
         </div>
 
+        <div id="dashboard-data-warning" class="hidden mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"></div>
+
         <div id="view-dashboard">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Macro Overview</h2>
@@ -676,7 +678,12 @@
                         fetchExportSheet('270734933'),
                         fetchExportSheet('1828017678')
                     ]);
-                    return { steam, googlePlay, mailerlite };
+                    return {
+                        steam,
+                        googlePlay,
+                        mailerlite,
+                        fallbackReason: `The live dashboard data API failed (${error.message}). Subscriber totals are from the lightweight fallback tab and may be incomplete.`
+                    };
                 }
             };
 
@@ -695,6 +702,14 @@
                 // from recent raw MailerLite rows on the server.
                 fetchDashboardSources()
             ]);
+            const dataWarning = document.getElementById('dashboard-data-warning');
+            if (dashboardSources.fallbackReason) {
+                dataWarning.textContent = `⚠ ${dashboardSources.fallbackReason}`;
+                dataWarning.classList.remove('hidden');
+            } else {
+                dataWarning.textContent = '';
+                dataWarning.classList.add('hidden');
+            }
             const { steam, googlePlay, mailerlite } = dashboardSources;
             GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;

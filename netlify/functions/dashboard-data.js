@@ -1,10 +1,8 @@
 import { getDoc, readSheetColumns } from "../../lib/db.js";
 import {
-  findSubscriberRepairPartitions,
-  groupContiguousRowNumbers,
   latestRowDate,
   mergeDashboardSubscribers,
-  subscriberPartitionKey
+  recentSubscriberRepairWindow
 } from "../../lib/dashboard-data.js";
 import { bad } from "../../lib/util.js";
 
@@ -34,29 +32,28 @@ export const handler = async (event) => {
     ]);
 
     const derivedLatest = latestRowDate(derivedSubscribers, "created_at");
-    const repairPartitions = findSubscriberRepairPartitions(derivedSubscribers, rawSubscriberDates);
-    const repairPartitionSet = new Set(repairPartitions);
-    const rawRowsToRepair = rawSubscriberDates.filter(row => {
-      return repairPartitionSet.has(subscriberPartitionKey(row));
-    });
+    const rawLatest = latestRowDate(rawSubscriberDates, "created_at");
+    const repairWindow = recentSubscriberRepairWindow(rawSubscriberDates, rawLatest);
 
     let rawSubscribers = [];
-    if (rawRowsToRepair.length > 0) {
-      const rowRanges = groupContiguousRowNumbers(rawRowsToRepair.map(row => row.__rowNumber));
-      const repairBatches = await Promise.all(rowRanges.map(({ startRow, endRow }) =>
-        readSheetColumns(
-          "mailerlite_subscribers",
-          ["subscriber_id", "created_at", "country", "raw"],
-          { startRow, endRow }
-        )
-      ));
-      rawSubscribers = repairBatches
-        .flat()
-        .filter(row => repairPartitionSet.has(subscriberPartitionKey(row)));
+    if (repairWindow) {
+      const repairRowNumbers = new Set(repairWindow.rowNumbers);
+      rawSubscribers = await readSheetColumns(
+        "mailerlite_subscribers",
+        ["subscriber_id", "created_at", "country", "raw"],
+        { startRow: repairWindow.startRow, endRow: repairWindow.endRow }
+      );
+      rawSubscribers = rawSubscribers.filter(row => repairRowNumbers.has(row.__rowNumber));
     }
 
     const mailerlite = mergeDashboardSubscribers(derivedSubscribers, rawSubscribers);
-    const rawLatest = latestRowDate(rawSubscriberDates, "created_at");
+    const repairSummary = repairWindow ? {
+      cutoffDate: repairWindow.cutoffDate,
+      latestDate: repairWindow.latestDate,
+      startRow: repairWindow.startRow,
+      endRow: repairWindow.endRow,
+      selectedRows: repairWindow.rowNumbers.length
+    } : null;
     const body = JSON.stringify({
       steam: cleanRows(steam),
       googlePlay: cleanRows(googlePlay),
@@ -67,7 +64,7 @@ export const handler = async (event) => {
         mailerlite: latestRowDate(mailerlite, "created_at"),
         mailerliteDerived: derivedLatest,
         mailerliteRaw: rawLatest,
-        mailerliteRepairedPartitions: repairPartitions,
+        mailerliteRepairWindow: repairSummary,
         mailerliteRepairedRows: rawSubscribers.length
       }
     });
