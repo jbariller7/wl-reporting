@@ -48,9 +48,15 @@ test("MailerLite sync maintains a lightweight dashboard-only subscriber tab", ()
   assert.match(etl, /!utmSource\.includes\("reddit"\)/);
   assert.match(etl, /clearDateRange\("mailerlite_dashboard_subscribers"/);
   assert.match(etl, /"mailerlite_dashboard_subscribers",[\s\S]*?\{ createSheet: true, updateExisting: true \}/);
+  assert.match(etl, /const membershipBatch = \[\]/);
+  assert.equal((etl.match(/upsert\("mailerlite_group_memberships"/g) || []).length, 1);
   assert.match(db, /'mailerlite_dashboard_subscribers': 'MailerLite_Dashboard'/);
+  assert.match(db, /const headerLoadedSheets = new WeakSet\(\)/);
+  assert.match(db, /if \(!headerLoadedSheets\.has\(sheet\)\)/);
   assert.match(html, /fetch\('\/.netlify\/functions\/dashboard-data'/);
   assert.match(html, /fetchExportSheet\('1828017678'\)/);
+  assert.match(html, /id="dashboard-data-warning"/);
+  assert.match(html, /Subscriber totals are from the lightweight fallback tab and may be incomplete/);
   assert.doesNotMatch(html, /fetchSheet\('MailerLite',/);
   assert.match(db, /addRows\(newRows,\s*\{\s*raw:\s*true\s*\}\)/);
 });

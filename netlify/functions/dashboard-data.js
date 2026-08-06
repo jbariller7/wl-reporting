@@ -1,5 +1,9 @@
-import { getDoc, normalizeSheetDateValue, readSheetColumns } from "../../lib/db.js";
-import { latestRowDate, mergeDashboardSubscribers } from "../../lib/dashboard-data.js";
+import { getDoc, readSheetColumns } from "../../lib/db.js";
+import {
+  latestRowDate,
+  mergeDashboardSubscribers,
+  recentSubscriberRepairWindow
+} from "../../lib/dashboard-data.js";
 import { bad } from "../../lib/util.js";
 
 function cleanRows(rows) {
@@ -24,32 +28,32 @@ export const handler = async (event) => {
         "Country of Buyer"
       ]),
       readSheetColumns("mailerlite_dashboard_subscribers", ["subscriber_id", "created_at", "country"]),
-      readSheetColumns("mailerlite_subscribers", ["created_at"])
+      readSheetColumns("mailerlite_subscribers", ["subscriber_id", "created_at", "country"])
     ]);
 
     const derivedLatest = latestRowDate(derivedSubscribers, "created_at");
-    const freshRawRows = rawSubscriberDates.filter(row => {
-      const date = normalizeSheetDateValue(row.created_at);
-      return /^\d{4}-\d{2}-\d{2}$/.test(date) && (!derivedLatest || date > derivedLatest);
-    });
+    const rawLatest = latestRowDate(rawSubscriberDates, "created_at");
+    const repairWindow = recentSubscriberRepairWindow(rawSubscriberDates, rawLatest);
 
     let rawSubscribers = [];
-    if (freshRawRows.length > 0) {
-      const startRow = Math.min(...freshRawRows.map(row => row.__rowNumber));
-      const endRow = Math.max(...freshRawRows.map(row => row.__rowNumber));
+    if (repairWindow) {
+      const repairRowNumbers = new Set(repairWindow.rowNumbers);
       rawSubscribers = await readSheetColumns(
         "mailerlite_subscribers",
         ["subscriber_id", "created_at", "country", "raw"],
-        { startRow, endRow }
+        { startRow: repairWindow.startRow, endRow: repairWindow.endRow }
       );
-      rawSubscribers = rawSubscribers.filter(row => {
-        const date = normalizeSheetDateValue(row.created_at);
-        return !derivedLatest || date > derivedLatest;
-      });
+      rawSubscribers = rawSubscribers.filter(row => repairRowNumbers.has(row.__rowNumber));
     }
 
     const mailerlite = mergeDashboardSubscribers(derivedSubscribers, rawSubscribers);
-    const rawLatest = latestRowDate(rawSubscriberDates, "created_at");
+    const repairSummary = repairWindow ? {
+      cutoffDate: repairWindow.cutoffDate,
+      latestDate: repairWindow.latestDate,
+      startRow: repairWindow.startRow,
+      endRow: repairWindow.endRow,
+      selectedRows: repairWindow.rowNumbers.length
+    } : null;
     const body = JSON.stringify({
       steam: cleanRows(steam),
       googlePlay: cleanRows(googlePlay),
@@ -59,7 +63,9 @@ export const handler = async (event) => {
         googlePlay: latestRowDate(googlePlay, "Order Charged Date"),
         mailerlite: latestRowDate(mailerlite, "created_at"),
         mailerliteDerived: derivedLatest,
-        mailerliteRaw: rawLatest
+        mailerliteRaw: rawLatest,
+        mailerliteRepairWindow: repairSummary,
+        mailerliteRepairedRows: rawSubscribers.length
       }
     });
 
