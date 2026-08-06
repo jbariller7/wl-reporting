@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
+  findSubscriberRepairPartitions,
+  groupContiguousRowNumbers,
   isDashboardEligibleSubscriber,
   latestRowDate,
-  mergeDashboardSubscribers
+  mergeDashboardSubscribers,
+  subscriberPartitionKey
 } from "../lib/dashboard-data.js";
 
 test("dashboard loader avoids GViz for mixed-type purchase dates", () => {
@@ -32,6 +35,31 @@ test("recent raw MailerLite rows repair a stale derived subscriber tab", () => {
   assert.equal(latestRowDate(merged, "created_at"), "2026-08-04");
   assert.equal(isDashboardEligibleSubscriber(raw[1]), false);
   assert.equal(isDashboardEligibleSubscriber(raw[2]), false);
+});
+
+test("internal MailerLite date-country gaps are repaired even when newer derived dates exist", () => {
+  const derived = [
+    { subscriber_id: "1", created_at: "2026-07-31 10:00:00", country: "US" },
+    { subscriber_id: "5", created_at: "2026-08-04 10:00:00", country: "US" }
+  ];
+  const rawDates = [
+    { __rowNumber: 10, created_at: "2026-08-01 10:00:00", country: "DE" },
+    { __rowNumber: 11, created_at: "2026-08-01 11:00:00", country: "DE" },
+    { __rowNumber: 12, created_at: "2026-08-02 10:00:00", country: "DE" },
+    { __rowNumber: 20, created_at: "2026-08-03 10:00:00", country: "DE" },
+    { __rowNumber: 21, created_at: "2026-08-04 10:00:00", country: "US" }
+  ];
+
+  assert.deepEqual(findSubscriberRepairPartitions(derived, rawDates), [
+    "2026-08-01|DE",
+    "2026-08-02|DE",
+    "2026-08-03|DE"
+  ]);
+  assert.equal(subscriberPartitionKey(rawDates[0]), "2026-08-01|DE");
+  assert.deepEqual(groupContiguousRowNumbers([10, 11, 12, 20]), [
+    { startRow: 10, endRow: 12 },
+    { startRow: 20, endRow: 20 }
+  ]);
 });
 
 test("sync writes dashboard-critical date and amount columns as typed cells", () => {

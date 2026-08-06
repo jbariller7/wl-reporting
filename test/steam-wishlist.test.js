@@ -59,7 +59,7 @@ test("Steam button, scheduled sync, and dashboards all consume wishlist API data
   assert.match(cron, /etlSteamData\(range\)/);
   assert.match(html, /fetchSheet\('Steam_Wishlist', \['A', 'C', 'F', 'G', 'H'\]\)/);
   assert.match(html, /id="kpi-wishlist-adds"/);
-  assert.match(html, /Steam Wishlist Adds \| Spend\/Wishlist \(4D Rolling\)/);
+  assert.match(html, /Steam Wishlist Adds \| Cost\/Wishlist \(4D Rolling\)/);
   assert.match(html, /value="wishlistAdds"/);
   assert.match(html, /country-level commercial-intent signal/);
 });

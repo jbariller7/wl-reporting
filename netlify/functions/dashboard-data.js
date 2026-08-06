@@ -1,5 +1,11 @@
-import { getDoc, normalizeSheetDateValue, readSheetColumns } from "../../lib/db.js";
-import { latestRowDate, mergeDashboardSubscribers } from "../../lib/dashboard-data.js";
+import { getDoc, readSheetColumns } from "../../lib/db.js";
+import {
+  findSubscriberRepairPartitions,
+  groupContiguousRowNumbers,
+  latestRowDate,
+  mergeDashboardSubscribers,
+  subscriberPartitionKey
+} from "../../lib/dashboard-data.js";
 import { bad } from "../../lib/util.js";
 
 function cleanRows(rows) {
@@ -24,28 +30,29 @@ export const handler = async (event) => {
         "Country of Buyer"
       ]),
       readSheetColumns("mailerlite_dashboard_subscribers", ["subscriber_id", "created_at", "country"]),
-      readSheetColumns("mailerlite_subscribers", ["created_at"])
+      readSheetColumns("mailerlite_subscribers", ["subscriber_id", "created_at", "country"])
     ]);
 
     const derivedLatest = latestRowDate(derivedSubscribers, "created_at");
-    const freshRawRows = rawSubscriberDates.filter(row => {
-      const date = normalizeSheetDateValue(row.created_at);
-      return /^\d{4}-\d{2}-\d{2}$/.test(date) && (!derivedLatest || date > derivedLatest);
+    const repairPartitions = findSubscriberRepairPartitions(derivedSubscribers, rawSubscriberDates);
+    const repairPartitionSet = new Set(repairPartitions);
+    const rawRowsToRepair = rawSubscriberDates.filter(row => {
+      return repairPartitionSet.has(subscriberPartitionKey(row));
     });
 
     let rawSubscribers = [];
-    if (freshRawRows.length > 0) {
-      const startRow = Math.min(...freshRawRows.map(row => row.__rowNumber));
-      const endRow = Math.max(...freshRawRows.map(row => row.__rowNumber));
-      rawSubscribers = await readSheetColumns(
-        "mailerlite_subscribers",
-        ["subscriber_id", "created_at", "country", "raw"],
-        { startRow, endRow }
-      );
-      rawSubscribers = rawSubscribers.filter(row => {
-        const date = normalizeSheetDateValue(row.created_at);
-        return !derivedLatest || date > derivedLatest;
-      });
+    if (rawRowsToRepair.length > 0) {
+      const rowRanges = groupContiguousRowNumbers(rawRowsToRepair.map(row => row.__rowNumber));
+      const repairBatches = await Promise.all(rowRanges.map(({ startRow, endRow }) =>
+        readSheetColumns(
+          "mailerlite_subscribers",
+          ["subscriber_id", "created_at", "country", "raw"],
+          { startRow, endRow }
+        )
+      ));
+      rawSubscribers = repairBatches
+        .flat()
+        .filter(row => repairPartitionSet.has(subscriberPartitionKey(row)));
     }
 
     const mailerlite = mergeDashboardSubscribers(derivedSubscribers, rawSubscribers);
@@ -59,7 +66,9 @@ export const handler = async (event) => {
         googlePlay: latestRowDate(googlePlay, "Order Charged Date"),
         mailerlite: latestRowDate(mailerlite, "created_at"),
         mailerliteDerived: derivedLatest,
-        mailerliteRaw: rawLatest
+        mailerliteRaw: rawLatest,
+        mailerliteRepairedPartitions: repairPartitions,
+        mailerliteRepairedRows: rawSubscribers.length
       }
     });
 
