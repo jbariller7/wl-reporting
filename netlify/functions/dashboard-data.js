@@ -27,7 +27,7 @@ export const handler = async (event) => {
         "Charged Amount",
         "Country of Buyer"
       ]),
-      readSheetColumns("google_play_installs", ["Date", "Country", "Daily User Installs"])
+      readSheetColumns("google_play_installs", ["Date", "Country", "Daily User Installs"], { unbounded: true })
         .catch(error => {
           if (error.message.includes('Tab named "Google_Play_Installs" not found')) return [];
           throw error;
