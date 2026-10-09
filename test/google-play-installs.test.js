@@ -28,6 +28,13 @@ test("UTF-16 Play reports parse into date and country user and device counts", (
   }]);
 });
 
+test("package-scoped reports import when the CSV omits or renames the package column", () => {
+  const options = { packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04" };
+  const withoutPackage = csv.replaceAll("Package Name,", "").replaceAll("app.wonderlang,", "").replaceAll("other.app,", "");
+  assert.deepEqual(parseGooglePlayInstallsCsv(withoutPackage, options).map(row => row["Package Name"]), ["app.wonderlang", "app.wonderlang", "app.wonderlang"]);
+  assert.equal(parseGooglePlayInstallsCsv(csv.replace("Package Name", "Package name"), options).length, 2);
+});
+
 test("malformed install counts fail instead of becoming false zeros", () => {
   assert.throws(() => parseGooglePlayInstallsCsv(csv.replace(",3,4", ",N/A,4"), {
     packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04"
