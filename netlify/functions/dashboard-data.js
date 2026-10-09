@@ -14,7 +14,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== "GET") return bad("Use GET");
 
   try {
-    const [steam, googlePlay, derivedSubscribers, rawSubscriberDates] = await Promise.all([
+    const [steam, googlePlay, installs, derivedSubscribers, rawSubscriberDates] = await Promise.all([
       readSheetColumns("steam_sales", ["date", "country", "net_revenue"]),
       readSheetColumns("google_play_sales", [
         "Order Number",
@@ -27,6 +27,11 @@ export const handler = async (event) => {
         "Charged Amount",
         "Country of Buyer"
       ]),
+      readSheetColumns("google_play_installs", ["Date", "Country", "Daily User Installs"])
+        .catch(error => {
+          if (error.message.includes('Tab named "Google_Play_Installs" not found')) return [];
+          throw error;
+        }),
       readSheetColumns("mailerlite_dashboard_subscribers", ["subscriber_id", "created_at", "country"]),
       readSheetColumns("mailerlite_subscribers", ["subscriber_id", "created_at", "country"])
     ]);
@@ -57,10 +62,12 @@ export const handler = async (event) => {
     const body = JSON.stringify({
       steam: cleanRows(steam),
       googlePlay: cleanRows(googlePlay),
+      installs: cleanRows(installs),
       mailerlite,
       freshness: {
         steam: latestRowDate(steam, "date"),
         googlePlay: latestRowDate(googlePlay, "Order Charged Date"),
+        installs: latestRowDate(installs, "Date"),
         mailerlite: latestRowDate(mailerlite, "created_at"),
         mailerliteDerived: derivedLatest,
         mailerliteRaw: rawLatest,

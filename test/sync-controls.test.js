@@ -10,7 +10,7 @@ test("Update ALL forwards force refresh and covers every active source except Ti
   assert.match(html, /forceRefresh\s*=\s*document\.getElementById\('force-refresh'\)\.checked/);
   assert.match(html, /body:\s*JSON\.stringify\([\s\S]*?forceRefresh/);
   assert.match(refresh, /range\.forceRefresh\s*=\s*body\.forceRefresh\s*===\s*true/);
-  assert.match(refresh, /\["stripe","meta","mailerlite","steam","google_play","telemetry"\]/);
+  assert.match(refresh, /\["stripe","meta","mailerlite","steam","google_play","google_play_installs","telemetry"\]/);
   assert.doesNotMatch(refresh, /body\.sources\s*\|\|\s*\[[^\]]*"tiktok"/);
   assert.match(refresh, /results\.telemetry\s*=\s*await etlTelemetry\(range\)/);
   assert.match(html, /\['fetch-meta', 'META'\]/);

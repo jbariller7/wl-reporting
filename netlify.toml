@@ -8,6 +8,9 @@
 [functions."cron-daily"]
   schedule = "0 4 * * *"
 
+[functions."cron-play-installs"]
+  schedule = "30 4 * * *"
+
 [build]
   publish = "public"
   command = "echo 'No DB build needed for Google Sheets'"

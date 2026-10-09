@@ -17,7 +17,7 @@ Set the following environment variables via the Netlify UI.  Secrets should be m
 - `STEAM_PUBLISHER_KEY` – Steamworks Financial Web API publisher key used for both sales and wishlist reporting.
 - `STEAM_SALES_API_URL` – (optional) Steam partner API base URL override; defaults to `https://partner.steam-api.com`.
 - `GOOGLE_PLAY_REPORT_BUCKET` – Google Play financial-report bucket name, without the `gs://` prefix (for example `pubsite_prod_rev_0123456789`).
-- `GOOGLE_PLAY_PACKAGE_ID` – (recommended) Android package ID to keep when the Play account contains more than one app.
+- `GOOGLE_PLAY_PACKAGE_ID` – Android package ID to keep when the Play account contains more than one app; required for install reports (`com.wonderlang.app` for the production app).
 - `GOOGLE_PLAY_FEE_RATE` – (optional) estimated Google Play service-fee rate used for the live dashboard; defaults to `0.15`.
 
 ## Google Play sales setup
@@ -31,6 +31,12 @@ Google Play exposes estimated sales as daily-updated monthly ZIP reports in a pr
 5. In the dashboard's **Sync** tab, choose a date range and click **Google Play**, or use **Update ALL**.
 
 Google's estimated-sales report contains buyer-local gross and tax amounts but not the final Google fee. The dashboard derives net revenue from `Item Price`, applies the configured 15% Google Play fee assumption, converts `Currency of Sale` to EUR, then applies the shared 12.5% URSSAF rate. Refund rows are negative. For accounting-grade finalized payouts, use the monthly Google Play earnings report instead. Reports may appear several days after a sale; the daily job rechecks the last 14 days. See [Google Play's financial report documentation](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
+
+## Android installs setup
+
+The Android installs sync reads the Google Play Statistics country report from the same `GOOGLE_PLAY_REPORT_BUCKET`. Set `GOOGLE_PLAY_PACKAGE_ID` and grant `GOOGLE_SERVICE_ACCOUNT_EMAIL` the Play Console **global View app information and download bulk reports** permission. The importer creates a `Google_Play_Installs` tab with one row per date, package and country. The dashboard shows **Daily User Installs** as Android User Installs; the Sheet also keeps Daily Device Installs. These are Play installs, not Firebase first opens or Meta-attributed conversions.
+
+In **Data Sync**, select a historical range and click **Android Installs** once to backfill. Subsequent daily runs recheck the last 14 days because Play's reports can arrive 3–7 days after the install. The metric uses Play's Pacific Time reporting dates. See [Google Play's install report format and availability](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
 
 ## Setup
 
@@ -74,6 +80,7 @@ The functions in `netlify/functions` expose the following endpoints under the `/
 | `/fetch-mailerlite`           | POST   | Manually fetches MailerLite subscribers and groups.               |
 | `/fetch-steam-sales`          | POST   | Fetches Steam sales and daily country wishlist activity.          |
 | `/fetch-google-play`          | POST   | Imports Google Play estimated sales reports into `Google_Play`.   |
+| `/fetch-google-play-installs` | POST   | Imports Google Play daily country installs into `Google_Play_Installs`. |
 | `/import-steam-wishlist-csv` | POST   | Parses and imports a Steam wishlist CSV report.                   |
 | `/metrics`                    | GET    | Returns aggregated metrics for the dashboard front‑end.            |
 
@@ -82,7 +89,8 @@ The functions in `netlify/functions` expose the following endpoints under the `/
 Two scheduled functions automate data collection:
 
 - **cron-hourly** – runs every hour to fetch Stripe, Meta, TikTok and MailerLite data for the last 48 hours.
-- **cron-daily** – runs at 04:00 UTC daily to fetch Steam sales and wishlist activity and recheck the last 14 days of Google Play reports.
+- **cron-daily** – runs at 04:00 UTC daily to fetch Steam sales and wishlist activity and recheck the last 14 days of Google Play sales reports.
+- **cron-play-installs** – runs at 04:30 UTC daily to recheck the last 14 days of Google Play installs reports.
 
 ## Meta Ads decision optimizer
 
