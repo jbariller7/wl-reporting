@@ -34,6 +34,12 @@ test("malformed install counts fail instead of becoming false zeros", () => {
   }), /Invalid Daily User Installs/);
 });
 
+test("install rows without a country fail instead of being stored", () => {
+  assert.throws(() => parseGooglePlayInstallsCsv(csv.replace(",FR,3,4", ",,3,4"), {
+    packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04"
+  }), /Missing Country.*2026-10-02/);
+});
+
 test("installs flow reaches the Sheet, daily sync, dashboard API and UI", () => {
   const read = path => fs.readFileSync(new URL(path, import.meta.url), "utf8");
   assert.match(read("../lib/etl.js"), /upsert\(\s*"google_play_installs"/);
