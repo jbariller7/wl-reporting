@@ -34,10 +34,14 @@ test("malformed install counts fail instead of becoming false zeros", () => {
   }), /Invalid Daily User Installs/);
 });
 
-test("install rows without a country fail instead of being stored", () => {
-  assert.throws(() => parseGooglePlayInstallsCsv(csv.replace(",FR,3,4", ",,3,4"), {
-    packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04"
-  }), /Missing Country.*2026-10-02/);
+test("install rows without a country are reported and skipped while valid rows continue", () => {
+  const missingDates = [];
+  const rows = parseGooglePlayInstallsCsv(csv.replace(",FR,3,4", ",,3,4"), {
+    packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04",
+    onMissingCountry: row => missingDates.push(row.Date)
+  });
+  assert.deepEqual(missingDates, ["2026-10-02"]);
+  assert.deepEqual(rows.map(row => [row.Date, row.Country]), [["2026-10-01", "FR"]]);
 });
 
 test("installs flow reaches the Sheet, daily sync, dashboard API and UI", () => {
