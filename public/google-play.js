@@ -37,5 +37,28 @@
     };
   }
 
-  global.WLGooglePlay = Object.freeze({ normalizeRow, parseNumber });
+  function installCoverage(rows, { startDate, endDate, normalizeDate, includeCountry = () => true, isExcluded = () => false }) {
+    const datedRows = (rows || []).map(row => ({ row, date: normalizeDate(row.Date) }))
+      .filter(item => /^\d{4}-\d{2}-\d{2}$/.test(item.date || ""));
+    const latestDate = datedRows.reduce((latest, item) => item.date > latest ? item.date : latest, "");
+    if (!latestDate) return { status: "unavailable", latestDate: null, weekStart: null, weekInstalls: null };
+
+    const weekStart = new Date(Date.parse(`${latestDate}T00:00:00Z`) - 6 * 86400000).toISOString().slice(0, 10);
+    const weekInstalls = datedRows.reduce((total, { row, date }) => {
+      const country = String(row.Country || "UNKNOWN").trim().toUpperCase().replace(/^UK$/, "GB");
+      return date >= weekStart && date <= latestDate && includeCountry(country) && !isExcluded(date)
+        ? total + parseNumber(row["Daily User Installs"])
+        : total;
+    }, 0);
+    const status = startDate > latestDate ? "pending" : endDate > latestDate ? "partial" : "complete";
+    return { status, latestDate, weekStart, weekInstalls };
+  }
+
+  function formatInstalls(value, coverage) {
+    if (coverage?.status === "unavailable") return "N/A";
+    if (coverage?.status === "pending") return "Pending";
+    return String(value || 0);
+  }
+
+  global.WLGooglePlay = Object.freeze({ normalizeRow, parseNumber, installCoverage, formatInstalls });
 })(typeof window === "undefined" ? globalThis : window);
