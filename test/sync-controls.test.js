@@ -60,3 +60,12 @@ test("MailerLite sync maintains a lightweight dashboard-only subscriber tab", ()
   assert.doesNotMatch(html, /fetchSheet\('MailerLite',/);
   assert.match(db, /addRows\(newRows,\s*\{\s*raw:\s*true\s*\}\)/);
 });
+
+test("hourly MailerLite sync starts at midnight before replacing dashboard dates", () => {
+  const cron = fs.readFileSync(new URL("../netlify/functions/cron-hourly.mjs", import.meta.url), "utf8");
+
+  assert.match(cron, /mailerLiteSince\.setUTCDate\(mailerLiteSince\.getUTCDate\(\) - 2\)/);
+  assert.match(cron, /mailerLiteSince\.setUTCHours\(0, 0, 0, 0\)/);
+  assert.match(cron, /etlMailerLite\(mailerLiteRange\)/);
+  assert.doesNotMatch(cron, /etlMailerLite\(range\)/);
+});
