@@ -51,6 +51,29 @@ test("install rows without a country are reported and skipped while valid rows c
   assert.deepEqual(rows.map(row => [row.Date, row.Country]), [["2026-10-01", "FR"]]);
 });
 
+test("source coverage remains visible when the requested recent dates are not published", () => {
+  let coverage;
+  const result = parseGooglePlayInstallsCsv(csv, {
+    packageId: "app.wonderlang", sinceUtc: "2026-10-03", untilUtc: "2026-10-05",
+    onReport: report => { coverage = report; }
+  });
+  assert.deepEqual(result, []);
+  assert.deepEqual(coverage, {
+    sourceRows: 3, packageRows: 2, invalidDateRows: 0,
+    firstDate: "2026-10-01", latestDate: "2026-10-02", latestCountryDate: "2026-10-02"
+  });
+});
+
+test("coverage distinguishes unpublished dates from source rows missing a country", () => {
+  let coverage;
+  parseGooglePlayInstallsCsv(csv.replace(",FR,3,4", ",,3,4"), {
+    packageId: "app.wonderlang", sinceUtc: "2026-10-01", untilUtc: "2026-10-04",
+    onReport: report => { coverage = report; }
+  });
+  assert.equal(coverage.latestDate, "2026-10-02");
+  assert.equal(coverage.latestCountryDate, "2026-10-01");
+});
+
 test("installs flow reaches the Sheet, daily sync, dashboard API and UI", () => {
   const read = path => fs.readFileSync(new URL(path, import.meta.url), "utf8");
   assert.match(read("../lib/etl.js"), /upsert\(\s*"google_play_installs"/);
