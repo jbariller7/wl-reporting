@@ -38,6 +38,14 @@ The Android installs sync reads the Google Play Statistics country report from t
 
 In **Data Sync**, select a historical range and click **Android Installs** once to backfill. Subsequent daily runs recheck the last 14 days because Play's reports can arrive 3–7 days after the install. The metric uses Play's Pacific Time reporting dates. See [Google Play's install report format and availability](https://support.google.com/googleplay/android-developer/answer/6135870?hl=en-EN).
 
+## Daily Android acquisition: Firebase first opens
+
+For daily acquisition decisions, use **Firebase First Opens**, stored separately in `Firebase_Installs` by event date, country and Android stream. A first open is a first launch after install or reinstall; it is not a Google Play download and must not be added to Play installs or revenue. Unknown countries are recorded as `ZZ` with a sync warning/count, rather than dropping those events.
+
+The verified WonderLang Analytics property is `545026433`, linked to Firebase project `wonderlang-2209c` and Android app `com.wonderlang.app`. `FIREBASE_GA4_PROPERTY_ID` can override the property. Enable the **Google Analytics Data API** in the reporting service account's Cloud project and give that existing service account **Viewer** access to the Analytics property. No new service account key is needed. Set `FIREBASE_ANDROID_STREAM_ID` if the property returns more than one Android stream; the importer refuses to combine apps without explicit selection.
+
+Use **Data Sync → Firebase First Opens** to backfill; Update ALL includes it. The independent hourly job rereads the last 14 days to update provisional counts. Reporting dates use the Analytics property's timezone. Google documents standard intraday processing as typically 2–6 hours, with full processing/revisions potentially taking 24–48 hours; this is not a guaranteed real-time feed. See [Analytics freshness](https://support.google.com/analytics/answer/11198161?hl=en). `/fetch-firebase-installs` accepts `dryRun: true` to verify access and report counts without writing to the Sheet.
+
 ## Setup
 
 1. **Clone and install dependencies**

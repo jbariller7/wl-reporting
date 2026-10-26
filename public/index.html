@@ -129,6 +129,11 @@
                     <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-wishlist-adds">0</div>
                     <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-cost-per-wishlist">Cost / wishlist: -</div>
                 </div>
+                <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-emerald-500">
+                    <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Android First Opens</div>
+                    <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-first-opens">—</div>
+                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-first-opens-through">Firebase feed not connected</div>
+                </div>
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-emerald-400">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Android User Installs</div>
                     <div class="text-lg sm:text-xl font-bold text-gray-800" id="kpi-installs">0</div>
@@ -166,6 +171,7 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'wishlists')">Steam WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'installs')">Android Installs ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'firstOpens')">Firebase First Opens ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerWishlist')">Cost / WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
@@ -195,6 +201,7 @@
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'cps')">Cost / Sub ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'wishlists')">Steam WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'installs')">Android Installs ↕</th>
+                                <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'firstOpens')">Firebase First Opens ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('region', 'costPerWishlist')">Cost / WL ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'demoStarts')">Demo Starts ↕</th>
                                 <th class="p-2 sm:p-3 cursor-pointer text-right" onclick="sortDashTable('country', 'costPerDemo')">Cost/Demo ↕</th>
@@ -616,6 +623,7 @@
                     <button onclick="triggerUpdate('fetch-steam-sales')" class="bg-gray-600 text-white py-2 rounded hover:bg-gray-700 transition">Steam</button>
                     <button onclick="triggerUpdate('fetch-google-play')" class="bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 transition">Google Play</button>
                     <button onclick="triggerUpdate('fetch-google-play-installs')" class="bg-emerald-700 text-white py-2 rounded hover:bg-emerald-800 transition">Android Installs</button>
+                    <button onclick="triggerUpdate('fetch-firebase-installs')" class="bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 transition">Firebase First Opens</button>
                     <button onclick="triggerUpdate('fetch-telemetry')" class="bg-teal-600 text-white py-2 rounded hover:bg-teal-700 transition">Telemetry</button>
                 </div>
             </div>
@@ -723,7 +731,7 @@
                 dataWarning.classList.add('hidden');
             }
             const { steam, googlePlay, installs, mailerlite } = dashboardSources;
-            GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, installs, stripe, paypal, mailerlite, telemetry };
+            GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, installs, firebase: dashboardSources.firebase || [], stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
@@ -1197,6 +1205,7 @@ let globalDashboardState = {};
             (raw.steamWishlist || []).forEach(r => addOpts(r.country));
             (raw.googlePlay || []).forEach(r => addOpts(r.country));
             (raw.installs || []).forEach(r => addOpts(r.Country === 'UK' ? 'GB' : r.Country));
+            (raw.firebase || []).forEach(r => addOpts(r.Country));
             raw.stripe.forEach(r => addOpts(r.country));
             raw.mailerlite.forEach(r => addOpts(r.country));
 
@@ -1220,7 +1229,7 @@ let globalDashboardState = {};
         let dashSort = { country: { col: 'roas', desc: true }, region: { col: 'roas', desc: true } };
 
         function loadDashboardData(raw) {
-            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalWishlistAdds = 0, totalInstalls = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
+            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalWishlistAdds = 0, totalInstalls = 0, totalFirstOpens = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const regionAgg = {};
@@ -1265,6 +1274,7 @@ regs.forEach(reg => {
                     if (metric === 'subs') totalSubs += val;
                     if (metric === 'wishlists') totalWishlistAdds += val;
                     if (metric === 'installs') totalInstalls += val;
+                    if (metric === 'firstOpens') totalFirstOpens += val;
                     if (metric === 'imp') totalImp += val;
                     if (metric === 'clicks') totalClicks += val;
                     if (metric === 'demoStarts') totalDemoStarts += val;
@@ -1282,6 +1292,7 @@ regs.forEach(reg => {
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, 'mailerlite'));
             (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country, 'steam_wishlist'));
             (raw.installs || []).forEach(r => addMetric(r.Date, 'installs', Number(r['Daily User Installs'] || 0), r.Country === 'UK' ? 'GB' : r.Country, 'google_play_installs'));
+            (raw.firebase || []).forEach(r => addMetric(r.Date, 'firstOpens', Number(r['First Opens'] || 0), r.Country, 'firebase'));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, 'steam'));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, 'google_play'));
             raw.stripe.forEach(r => {
@@ -1335,6 +1346,15 @@ regs.forEach(reg => {
 
             document.getElementById('kpi-subs').innerText = totalSubs;
             document.getElementById('kpi-wishlist-adds').innerText = totalWishlistAdds;
+            const latestFirstOpenDate = (raw.firebase || []).map(row => normalizeDate(row.Date)).filter(Boolean).sort().pop();
+            const lastFirebaseSync = (raw.firebase || []).map(row => String(row['Synced At'] || '')).sort().pop();
+            globalDashboardState.hasFirebase = Boolean(latestFirstOpenDate);
+            globalDashboardState.totalFirstOpens = totalFirstOpens;
+            globalDashboardState.latestFirstOpenDate = latestFirstOpenDate;
+            document.getElementById('kpi-first-opens').innerText = latestFirstOpenDate ? totalFirstOpens : '—';
+            document.getElementById('kpi-first-opens-through').innerText = latestFirstOpenDate
+                ? `Firebase events through ${latestFirstOpenDate}. Synced ${lastFirebaseSync.slice(0, 16).replace('T', ' ')} UTC; recent dates provisional.`
+                : 'Firebase feed not connected';
             const installCoverage = WLGooglePlay.installCoverage(raw.installs, {
                 startDate, endDate, normalizeDate,
                 includeCountry: country => filterSelection.length === 0 || filterSelection.includes('ALL') || filterSelection.some(selection =>
@@ -1360,6 +1380,7 @@ regs.forEach(reg => {
             document.getElementById('kpi-roas').innerText = totalSpend > 0 ? (totalNet / totalSpend).toFixed(2) + 'x' : '0.00x';
 
            const calcMetrics = (c) => {
+                c.firstOpens = c.firstOpens || 0;
                 c.cps = c.subs > 0 ? c.spend / c.subs : 0;
                 c.costPerWishlist = c.wishlists > 0 ? c.spend / c.wishlists : 0;
                 c.totalLeads = (c.subs || 0) + (c.wishlists || 0);
@@ -1374,10 +1395,10 @@ regs.forEach(reg => {
                 return c;
             };
 
-           dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.installs > 0 || c.demoStarts > 0);
-            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.installs > 0 || c.demoStarts > 0);
+           dashCountryData = Object.values(countryAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.installs > 0 || c.firstOpens > 0 || c.demoStarts > 0);
+            dashRegionData = Object.values(regionAgg).map(calcMetrics).filter(c => c.spend > 0 || c.net > 0 || c.subs > 0 || c.wishlists > 0 || c.installs > 0 || c.firstOpens > 0 || c.demoStarts > 0);
             
-            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, wishlists: totalWishlistAdds, installs: totalInstalls, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
+            window.globalDashMetrics = calcMetrics({ spend: totalSpend, net: totalNet, subs: totalSubs, wishlists: totalWishlistAdds, installs: totalInstalls, firstOpens: totalFirstOpens, imp: totalImp, clicks: totalClicks, demoStarts: totalDemoStarts, demoFinishes: totalDemoFinishes });
             
             renderDashTables();
 
@@ -1443,6 +1464,7 @@ regs.forEach(reg => {
                             <td class="p-2 sm:p-3 text-right">€${g.cps.toFixed(2)}</td>
                             <td class="p-2 sm:p-3 text-right text-teal-700">${g.wishlists || 0}</td>
                             <td class="p-2 sm:p-3 text-right text-emerald-700">${WLGooglePlay.formatInstalls(g.installs, globalDashboardState.installCoverage)}</td>
+                            <td class="p-2 sm:p-3 text-right text-emerald-700">${globalDashboardState.hasFirebase ? (g.firstOpens || 0) : '—'}</td>
                             <td class="p-2 sm:p-3 text-right text-teal-800">${g.wishlists > 0 ? `€${g.costPerWishlist.toFixed(2)}` : '-'}</td>
                             <td class="p-2 sm:p-3 text-right text-purple-600">${g.demoStarts || 0}</td>
                             <td class="p-2 sm:p-3 text-right text-purple-800">€${(g.costPerDemo || 0).toFixed(2)}</td>
@@ -1463,6 +1485,7 @@ regs.forEach(reg => {
                         <td class="p-2 sm:p-3 text-right text-gray-800 font-medium" style="background-color: ${c.subs > 0 ? getRankColor(c.cps, sCps, false) : 'transparent'}">€${c.cps.toFixed(2)}</td>
                         <td class="p-2 sm:p-3 text-right text-teal-700 font-bold">${c.wishlists || 0}</td>
                         <td class="p-2 sm:p-3 text-right text-emerald-700 font-bold">${WLGooglePlay.formatInstalls(c.installs, globalDashboardState.installCoverage)}</td>
+                        <td class="p-2 sm:p-3 text-right text-emerald-700 font-bold">${globalDashboardState.hasFirebase ? (c.firstOpens || 0) : '—'}</td>
                         <td class="p-2 sm:p-3 text-right text-teal-800 font-medium">${c.wishlists > 0 ? `€${c.costPerWishlist.toFixed(2)}` : '-'}</td>
                         <td class="p-2 sm:p-3 text-right text-purple-600 font-bold">${c.demoStarts}</td>
                         <td class="p-2 sm:p-3 text-right text-purple-800 font-medium">€${c.costPerDemo.toFixed(2)}</td>
@@ -2338,6 +2361,8 @@ const datasets = selectedMetrics.map(key => {
             }
             output += `\n| Country | Android User Installs |\n|---------|-----------------------|\n`;
             dashCountryData.forEach(c => output += `| ${c.sortName} | ${WLGooglePlay.formatInstalls(c.installs, coverage)} |\n`);
+            output += `\n### Firebase Android First Opens\n- **Selected dates and countries:** ${globalDashboardState.hasFirebase ? globalDashboardState.totalFirstOpens : 'Not connected'}\n- First launches after install/reinstall, separate from Google Play installs. Recent counts may be revised.\n\n| Country | First Opens |\n|---------|-------------|\n`;
+            dashCountryData.forEach(c => output += `| ${c.sortName} | ${globalDashboardState.hasFirebase ? (c.firstOpens || 0) : '—'} |\n`);
 
             navigator.clipboard.writeText(output).then(() => {
                 const oldText = btn.innerText; btn.innerText = "✅ Copied to clipboard!";
@@ -3026,6 +3051,7 @@ let diagnosisDailyData = [];
                         ['fetch-steam-sales', 'STEAM'],
                         ['fetch-google-play', 'GOOGLE PLAY'],
                         ['fetch-google-play-installs', 'ANDROID INSTALLS'],
+                        ['fetch-firebase-installs', 'FIREBASE FIRST OPENS'],
                         ['fetch-telemetry', 'TELEMETRY']
                     ];
                     for (const [sourceEndpoint, label] of sources) {

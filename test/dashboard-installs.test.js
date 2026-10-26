@@ -85,4 +85,19 @@ test("the real dashboard renders pending installs, country rows and a working re
   vm.runInContext("loadDashboardData(raw)", context);
   assert.equal(element("kpi-installs").innerText, "9");
   assert.equal(state.totalInstalls, 9);
+  // The daily Firebase signal remains independent of delayed Play installs.
+  state.startDate = "2026-10-24";
+  state.endDate = "2026-10-25";
+  context.raw.firebase = [
+    { Date: "2026-10-25", Country: "FR", "First Opens": 4, "Synced At": "2026-10-26T07:00:00Z" },
+    { Date: "2026-10-25", Country: "US", "First Opens": 8, "Synced At": "2026-10-26T07:00:00Z" }
+  ];
+  vm.runInContext("loadDashboardData(raw)", context);
+  assert.equal(element("kpi-installs").innerText, "Pending");
+  assert.equal(element("kpi-first-opens").innerText, 4);
+  assert.match(element("kpi-first-opens-through").innerText, /2026-10-25.*provisional/);
+  assert.equal(state.totalFirstOpens, 4);
+  assert.equal(context.window.globalDashMetrics.firstOpens, 4);
+  assert.equal(context.dashCountryData[0].firstOpens, 4);
+  assert.equal(state.totalInstalls, 0);
 });

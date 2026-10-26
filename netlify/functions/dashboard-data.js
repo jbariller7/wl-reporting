@@ -14,7 +14,7 @@ export const handler = async (event) => {
   if (event.httpMethod !== "GET") return bad("Use GET");
 
   try {
-    const [steam, googlePlay, installs, derivedSubscribers, rawSubscriberDates] = await Promise.all([
+    const [steam, googlePlay, installs, derivedSubscribers, rawSubscriberDates, firebase] = await Promise.all([
       readSheetColumns("steam_sales", ["date", "country", "net_revenue"]),
       readSheetColumns("google_play_sales", [
         "Order Number",
@@ -33,7 +33,12 @@ export const handler = async (event) => {
           throw error;
         }),
       readSheetColumns("mailerlite_dashboard_subscribers", ["subscriber_id", "created_at", "country"]),
-      readSheetColumns("mailerlite_subscribers", ["subscriber_id", "created_at", "country"])
+      readSheetColumns("mailerlite_subscribers", ["subscriber_id", "created_at", "country"]),
+      readSheetColumns("firebase_installs", ["Date", "Country", "First Opens", "Synced At"], { unbounded: true })
+        .catch(error => {
+          if (error.message.includes('Tab named "Firebase_Installs" not found')) return [];
+          throw error;
+        })
     ]);
 
     const derivedLatest = latestRowDate(derivedSubscribers, "created_at");
@@ -63,11 +68,13 @@ export const handler = async (event) => {
       steam: cleanRows(steam),
       googlePlay: cleanRows(googlePlay),
       installs: cleanRows(installs),
+      firebase: cleanRows(firebase),
       mailerlite,
       freshness: {
         steam: latestRowDate(steam, "date"),
         googlePlay: latestRowDate(googlePlay, "Order Charged Date"),
         installs: latestRowDate(installs, "Date"),
+        firebase: latestRowDate(firebase, "Date"),
         mailerlite: latestRowDate(mailerlite, "created_at"),
         mailerliteDerived: derivedLatest,
         mailerliteRaw: rawLatest,
