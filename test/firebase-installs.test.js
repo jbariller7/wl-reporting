@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { firstOpenRequest, firstOpenRows } from "../lib/firebase-installs.js";
+import { firstOpenHeaders, firstOpenRequest, firstOpenRows } from "../lib/firebase-installs.js";
+
+test("Firebase API calls use the accessible WonderLang quota project rather than the credential's legacy project", () => {
+  assert.equal(firstOpenHeaders("test-token")["x-goog-user-project"], "wonderlang-2209c");
+  assert.equal(firstOpenHeaders("test-token", "other-project")["x-goog-user-project"], "other-project");
+  assert.equal(firstOpenHeaders("test-token").Authorization, "Bearer test-token");
+});
 
 const row = (day, country, stream, count) => ({
   dimensionValues: [day, country, stream, "com.wonderlang.app"].map(value => ({ value })),
