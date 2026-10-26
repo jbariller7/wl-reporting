@@ -521,6 +521,7 @@
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="profit" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Net Profit</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="subs" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Subscribers</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="wishlistAdds" class="mr-1.5 custom-metric-cb" checked onchange="renderCustomChart()"> Steam Wishlist Adds</label>
+                    <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="firstOpens" class="mr-1.5 custom-metric-cb" checked onchange="renderCustomChart()"> Android First Opens</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="costPerWishlist" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Wishlist</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="totalLeads" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Total Leads</label>
                     <label class="inline-flex items-center cursor-pointer bg-gray-50 px-2 py-1 rounded border hover:bg-gray-100 text-sm font-medium"><input type="checkbox" value="costPerLead" class="mr-1.5 custom-metric-cb" onchange="renderCustomChart()"> Cost/Lead</label>
@@ -1967,7 +1968,7 @@ function loadEvolutionData(raw) {
             const allDates = new Set();
 
             const initDay = (obj, d) => {
-                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, wishlistAdds: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+                if (!obj[d]) obj[d] = { spend: 0, net: 0, subs: 0, wishlistAdds: 0, firstOpens: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
             };
 
             const addMetric = (date, metric, val, countryCode) => {
@@ -2011,6 +2012,7 @@ function loadEvolutionData(raw) {
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlistAdds', parseInt(r.wishlist_adds || 0), r.country));
+            (raw.firebase || []).forEach(r => addMetric(r.Date, 'firstOpens', Number(r['First Opens'] || 0), r.Country));
             raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
@@ -2042,7 +2044,7 @@ function loadEvolutionData(raw) {
             let sortedDates = Array.from(allDates).sort();
 
             const getMetrics = (dataObj, date) => {
-                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, wishlistAdds: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
+                const day = dataObj[date] || { spend: 0, net: 0, subs: 0, wishlistAdds: 0, firstOpens: 0, imp: 0, clicks: 0, demoStarts: 0, demoFinishes: 0 };
                 const roas = day.spend > 0 ? day.net / day.spend : 0;
                 const totalLeads = (day.subs || 0) + (day.wishlistAdds || 0);
                 return {
@@ -2051,6 +2053,7 @@ function loadEvolutionData(raw) {
                     profit: day.net - day.spend,
                     subs: day.subs,
                     wishlistAdds: day.wishlistAdds || 0,
+                    firstOpens: day.firstOpens || 0,
                     totalLeads,
                     demoStarts: day.demoStarts || 0,
                     roas: roas,
@@ -2130,6 +2133,7 @@ function loadEvolutionData(raw) {
                 profit: mapData('profit', false),
                 subs: mapData('subs', false),
                 wishlistAdds: mapData('wishlistAdds', false),
+                firstOpens: mapData('firstOpens', false),
                 costPerWishlist: mapData('costPerWishlist', false),
                 totalLeads: mapData('totalLeads', false),
                 costPerLead: mapData('costPerLead', false),
@@ -2205,6 +2209,7 @@ function renderCustomChart() {
                 spend: 'Ad Spend', roas: 'ROAS', inv_roas: 'Inverted ROAS', 
                 cps: 'Cost/Sub', cpc: 'CPC', cpm: 'CPM', net: 'Net Rev', profit: 'Net Profit', subs: 'Subscribers',
                 wishlistAdds: 'Steam Wishlist Adds', costPerWishlist: 'Cost/Wishlist',
+                firstOpens: 'Android First Opens',
                 totalLeads: 'Total Leads', costPerLead: 'Cost/Lead',
                 demoStarts: 'Demo Starts', costPerDemo: 'Cost/Demo'
             };
@@ -2212,6 +2217,7 @@ function renderCustomChart() {
                 spend: '#f87171', roas: '#a855f7', inv_roas: '#ec4899', 
                 cps: '#eab308', cpc: '#10b981', cpm: '#3b82f6', net: '#4ade80', profit: '#14b8a6', subs: '#0ea5e9',
                 wishlistAdds: '#0d9488', costPerWishlist: '#115e59',
+                firstOpens: '#059669',
                 totalLeads: '#f59e0b', costPerLead: '#b45309',
                 demoStarts: '#8b5cf6', costPerDemo: '#f97316'
             };
@@ -2259,9 +2265,10 @@ const datasets = selectedMetrics.map(key => {
                                     
                                     // Format the tooltip string cleanly
                                     let formattedVal = rawVal.toFixed(2);
-                                    if (key === 'subs' || key === 'demoStarts' || key === 'wishlistAdds' || key === 'totalLeads') formattedVal = Math.round(rawVal);
+                                    const isCount = ['subs', 'demoStarts', 'wishlistAdds', 'firstOpens', 'totalLeads'].includes(key);
+                                    if (isCount) formattedVal = Math.round(rawVal);
                                     if (key === 'roas' || key === 'inv_roas') formattedVal += 'x';
-                                    else if (key !== 'subs' && key !== 'demoStarts' && key !== 'wishlistAdds' && key !== 'totalLeads') formattedVal = '€' + formattedVal;
+                                    else if (!isCount) formattedVal = '€' + formattedVal;
 
                                     return `${context.dataset.label}: ${formattedVal} (Index: ${context.parsed.y.toFixed(0)}%)`;
                                 }
