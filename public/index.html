@@ -13,6 +13,7 @@
     <style>
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
         .console-container { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; height: 300px; overflow-y: auto; text-align: left; }
+        .log-warning { color: #ffaa00; font-weight: 600; }
         .log-error { color: #ff5555; }
         .log-warn { color: #ffaa00; }
         .log-success { color: #55ff55; }
@@ -2983,7 +2984,9 @@ let diagnosisDailyData = [];
                 return { ok: false, rows: 0 };
             }
             const rows = Number(json.rows || 0);
-            if (announceSuccess) logToConsole(`[${label}] SUCCESS: Transferred ${rows} rows.`, 'success');
+            if (json.complete === false || json.warnings?.length) {
+                logToConsole(`[${label}] COMPLETED WITH WARNINGS: ${rows} rows transferred; see missing-app details above.`, 'warning');
+            } else if (announceSuccess) logToConsole(`[${label}] SUCCESS: Transferred ${rows} rows.`, 'success');
             return { ok: true, rows };
         }
 

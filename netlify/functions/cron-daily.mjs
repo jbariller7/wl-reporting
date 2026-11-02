@@ -13,7 +13,10 @@ export default async (req) => {
   // cannot permanently leave a false zero in the dashboard.
   const since = new Date(twoDaysAgo.setUTCHours(0, 0, 0, 0)).toISOString();
   const until = new Date(yesterday.setUTCHours(23, 59, 59, 999)).toISOString();
-  const range = { sinceUtc: since, untilUtc: until };
+  // Steam financial dates can be revised after the initial daily import.
+  const salesSince = new Date(now.getTime() - 14 * 86400000);
+  salesSince.setUTCHours(0, 0, 0, 0);
+  const range = { sinceUtc: since, untilUtc: until, salesSinceUtc: salesSince.toISOString() };
   const steam = await etlSteamData(range).catch((e) => ({ ok: false, msg: e.message }));
   console.log("cron-daily steam", steam);
 
