@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="/google-play.js"></script>
     <script src="/sync-utils.js"></script>
+    <script src="/steam-fx.js"></script>
     
     <style>
         .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: bold; }
@@ -99,6 +100,13 @@
         </div>
 
         <div id="dashboard-data-warning" class="hidden mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"></div>
+
+        <details id="steam-fx-details" class="mb-5 rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
+            <summary class="cursor-pointer font-medium">Steam currency conversion: monthly payout rates, less 0.4% conversion fee</summary>
+            <p class="mt-2 text-xs">Sales use the ECB USD→EUR reference rate on the following month's 29th (or the preceding published business day; February is capped at month-end). Pending payments use the latest available rate and remain provisional. These are payout estimates. Steam's 30% share and 12.5% URSSAF are applied separately.</p>
+            <p id="steam-fx-status" class="mt-2 text-xs">Loading monthly rates…</p>
+            <div class="overflow-x-auto mt-2"><table class="w-full text-xs text-left"><thead><tr><th class="p-1">Sales month</th><th class="p-1">Payment date</th><th class="p-1">Rate date</th><th class="p-1">EUR per USD after fee</th><th class="p-1">Status</th></tr></thead><tbody id="steam-fx-table"></tbody></table></div>
+        </details>
 
         <div id="view-dashboard">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
@@ -661,6 +669,41 @@
     <script>
         // --- Shared Data Cache ---
         let GLOBAL_RAW_DATA = null;
+        let STEAM_FX_RATES = null;
+        async function fetchSteamExchangeRates() {
+            try {
+                const response = await fetch('/.netlify/functions/steam-exchange-rates');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const rates = await response.json();
+                if (!rates.months?.['2026-01']) throw new Error('Missing monthly rates');
+                return rates;
+            } catch (error) {
+                const response = await fetch('/steam-fx-snapshot.json');
+                if (!response.ok) throw new Error('Steam currency rates are unavailable. Please reload before using revenue totals.');
+                const snapshot = await response.json();
+                const rates = WLSteamFx.buildMonthlyRates(snapshot.observations);
+                return { ...rates, fallback: true, warning: `Using saved ECB rates through ${rates.latestRateDate}; live refresh unavailable.` };
+            }
+        }
+
+        function renderSteamExchangeRates(rates) {
+            const status = document.getElementById('steam-fx-status');
+            status.textContent = rates.warning || `ECB reference rates available through ${rates.latestRateDate}. Rates update automatically. Pending payment months remain provisional.`;
+            status.classList.toggle('text-amber-700', !!rates.fallback);
+            const body = document.getElementById('steam-fx-table');
+            body.replaceChildren();
+            Object.values(rates.months).filter(rate => rate.salesMonth <= rates.asOf.slice(0, 7)).forEach(rate => {
+                const tr = document.createElement('tr');
+                [rate.salesMonth, rate.paymentDate, rate.rateDate, rate.effectiveEurPerUsd.toFixed(6), rate.provisional ? 'Provisional' : 'Historical reference'].forEach(value => {
+                    const td = document.createElement('td'); td.className = 'p-1 border-t'; td.textContent = value; tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+        }
+
+        function steamNetEur(row) {
+            return WLSteamFx.toEur(parseFloat(row.net_revenue || 0), normalizeDate(row.date), STEAM_FX_RATES) * (1 - STEAM_CUT) * (1 - TAX_RATE);
+        }
         async function fetchAllSheets(force = false) {
             if (GLOBAL_RAW_DATA && !force) return GLOBAL_RAW_DATA;
             const SHEET_ID = '15zn0MHwsfkG20eBvEQmFb4BdTto2xEM9z2RAKtfgDow';
@@ -709,7 +752,7 @@
                 }
             };
 
-            const [meta, steamWishlist, stripe, paypal, telemetry, dashboardSources] = await Promise.all([
+            const [meta, steamWishlist, stripe, paypal, telemetry, dashboardSources, steamFx] = await Promise.all([
                 // Only request fields consumed by the dashboard. In particular,
                 // Meta's large raw JSON payload and the Meta_Ads/Meta_AdSets tabs
                 // are intentionally not downloaded.
@@ -722,8 +765,11 @@
                 // endpoint reads their real values without GViz silently blanking
                 // recent dates or amounts, and repairs a stale subscriber cache
                 // from recent raw MailerLite rows on the server.
-                fetchDashboardSources()
+                fetchDashboardSources(),
+                fetchSteamExchangeRates()
             ]);
+            STEAM_FX_RATES = steamFx;
+            renderSteamExchangeRates(steamFx);
             const dataWarning = document.getElementById('dashboard-data-warning');
             if (dashboardSources.fallbackReason) {
                 dataWarning.textContent = `⚠ ${dashboardSources.fallbackReason}`;
@@ -733,7 +779,7 @@
                 dataWarning.classList.add('hidden');
             }
             const { steam, googlePlay, installs, mailerlite } = dashboardSources;
-            GLOBAL_RAW_DATA = { meta, steam, steamWishlist, googlePlay, installs, firebase: dashboardSources.firebase || [], stripe, paypal, mailerlite, telemetry };
+            GLOBAL_RAW_DATA = { meta, steam, steamWishlist, steamFx, googlePlay, installs, firebase: dashboardSources.firebase || [], stripe, paypal, mailerlite, telemetry };
             return GLOBAL_RAW_DATA;
         }
 
@@ -1295,7 +1341,7 @@ regs.forEach(reg => {
             (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country, 'steam_wishlist'));
             (raw.installs || []).forEach(r => addMetric(r.Date, 'installs', Number(r['Daily User Installs'] || 0), r.Country === 'UK' ? 'GB' : r.Country, 'google_play_installs'));
             (raw.firebase || []).forEach(r => addMetric(r.Date, 'firstOpens', Number(r['First Opens'] || 0), r.Country, 'firebase'));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, 'steam'));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country, 'steam'));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, 'google_play'));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -1595,7 +1641,7 @@ regs.forEach(reg => {
                 }
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country, null));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, null));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country, null));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, null));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -1798,7 +1844,7 @@ regs.forEach(reg => {
 
             raw.meta.forEach(r => { if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country); });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -1907,7 +1953,7 @@ let isFilteredIn = false;
             raw.meta.forEach(r => {
                 if (!excludeAdsets.includes(r.adset_name || '')) addMetric(r.date, 'spend', parseFloat(r.spend || 0), r.country, r.adset_name);
             });
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country, null));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country, null));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country, null));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -2014,7 +2060,7 @@ function loadEvolutionData(raw) {
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlistAdds', parseInt(r.wishlist_adds || 0), r.country));
             (raw.firebase || []).forEach(r => addMetric(r.Date, 'firstOpens', Number(r['First Opens'] || 0), r.Country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -2407,7 +2453,7 @@ const datasets = selectedMetrics.map(key => {
             };
 
             raw.steam.forEach(row => push(row.date, row.country, {
-                netRevenue: toEur(parseFloat(row.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE),
+                netRevenue: steamNetEur(row),
                 orders: parseFloat(row.net_units || row.units || 0)
             }));
             forEachGooglePlayRevenue(raw, (date, netRevenue, country, units) => push(date, country, { netRevenue, orders: units || 0 }));
@@ -2647,7 +2693,7 @@ let diagnosisDailyData = [];
             });
             raw.mailerlite.forEach(r => addAllTime(r.created_at, 'subs', 1, r.country));
             (raw.steamWishlist || []).forEach(r => addAllTime(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country));
-            raw.steam.forEach(r => addAllTime(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.steam.forEach(r => addAllTime(r.date, 'net', steamNetEur(r), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addAllTime(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
@@ -2701,7 +2747,7 @@ let diagnosisDailyData = [];
             });
             raw.mailerlite.forEach(r => addMetric(r.created_at, 'subs', 1, r.country));
             (raw.steamWishlist || []).forEach(r => addMetric(r.date, 'wishlists', parseInt(r.wishlist_adds || 0), r.country));
-            raw.steam.forEach(r => addMetric(r.date, 'net', toEur(parseFloat(r.net_revenue || 0), 'usd') * (1 - STEAM_CUT) * (1 - TAX_RATE), r.country));
+            raw.steam.forEach(r => addMetric(r.date, 'net', steamNetEur(r), r.country));
             forEachGooglePlayRevenue(raw, (date, net, country) => addMetric(date, 'net', net, country));
             raw.stripe.forEach(r => {
                 if (r.status !== 'unpaid') {
