@@ -75,11 +75,13 @@ The Steam sync button and the daily job now update both `Steam_Sales` and a dedi
 
 See Valve's [IPartnerFinancialsService API documentation](https://partner.steamgames.com/doc/webapi/IPartnerFinancialsService?l=english#GetAppWishlistReporting) and [wishlist reporting notes](https://partner.steamgames.com/doc/marketing/wishlist/reporting?l=english).
 
-### Steam USD to EUR valuation from January 2026
+### Monthly currency valuation from January 2026
 
-All live dashboard revenue, ROAS, profit, country, calendar, correlation and export calculations use a shared monthly Steam rate. A sales month uses the ECB USD reference rate on the following month's 29th, capped at February month-end, or the last published business day before that date. The effective EUR per USD is `0.995 / ECB_USD_PER_EUR`, including the user's 0.5% conversion fee. The existing 30% Steam share and 12.5% URSSAF are then applied once. Source sales remain in USD in the Google Sheet.
+All live revenue, ROAS, profit, country, calendar, correlation and export calculations share monthly reference rates for Steam, PayPal and Google Play. Steam and Google Play use the following month's 29th; PayPal uses the sales month's 29th. February is capped at month-end and non-publishing days use the preceding published rate. Current sales months and pending reference dates use the latest available rate provisionally. The chosen 29th is an estimation convention, not confirmation of an actual provider payout date.
 
-`steam-exchange-rates` refreshes the official ECB history, with a one-hour cache and a dated, verified snapshot fallback. Pending payout months use the latest available rate and are visibly marked provisional. Once the payment reference is available, the next refresh updates the historical valuation automatically. The dashboard's currency-conversion details show each sales month, payment date, reference date and effective rate. These are reference-based estimates, not reconciled bank payouts. Pre-2026 valuation and other platforms retain their existing conversion rules.
+For non-EUR amounts, the effective EUR rate is `0.995 / CURRENCY_UNITS_PER_EUR`, including the user's 0.5% conversion fee exactly once. EUR amounts remain EUR without an FX fee. The existing 30% Steam share, estimated 15% Google Play fee and 12.5% URSSAF remain separate. Stripe and pre-2026 conversion retain their existing rules. Raw source amounts and currencies in the Google Sheet are unchanged.
+
+`steam-exchange-rates` refreshes official ECB history and the [Taiwan CBC USD/TWD series](https://data.gov.tw/en/datasets/7232), with a one-hour cache and dated snapshots if a source is unavailable. TWD/EUR is derived from CBC TWD/USD multiplied by ECB USD/EUR; preceding CBC business days are retained with their own reference date. The details table has platform and currency selectors. Unsupported currencies fall back to the former fixed-rate estimate plus the FX fee and display a warning; they are never silently treated as monthly reference rates. These remain reference-based estimates, not reconciled bank payouts.
 
 ## API endpoints
 

@@ -8,7 +8,7 @@ test("every revenue dashboard consumes Google Play data", () => {
   assert.match(html, /fetch\('\/.netlify\/functions\/dashboard-data'/);
   assert.match(html, /fetchExportSheet\('270734933'\)/);
   assert.match(html, /<script src="\/google-play\.js"><\/script>/);
-  assert.match(html, /const netAfterUrssaf = toEur\(sale\.netRevenue, sale\.currency\) \* \(1 - TAX_RATE\)/);
+  assert.match(html, /const netAfterUrssaf = monthlyPlatformEur\(sale\.netRevenue, sale\.currency, sale\.date, 'google_play'\) \* \(1 - TAX_RATE\)/);
   assert.match(html, /triggerUpdate\('fetch-google-play'\)/);
   assert.match(html, /Google Play: €\$\{totalGooglePlayNet\.toFixed\(2\)\}/);
 
@@ -30,8 +30,6 @@ test("dashboard derives revenue from the native Google Play schema", async () =>
   assert.equal(sale.currency, "GBP");
   assert.equal(sale.country, "GB");
   assert.ok(Math.abs(sale.netRevenue - 5.661) < 1e-9);
-  const eurAfterUrssaf = sale.netRevenue * 1.15 * (1 - 0.125);
-  assert.ok(Math.abs(eurAfterUrssaf - 5.69638125) < 1e-9);
 
   const refund = globalThis.WLGooglePlay.normalizeRow({
     "Order Charged Date": "19/07/2026",
