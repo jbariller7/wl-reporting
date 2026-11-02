@@ -124,7 +124,7 @@
                 <div class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-green-400 flex flex-col justify-center">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Net Revenue <span class="text-[9px] lowercase text-gray-400 font-normal hidden sm:inline">(-Tax/Fees)</span></div>
                     <div class="text-lg sm:text-xl font-bold text-gray-800 leading-tight" id="kpi-net">€0.00</div>
-                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-net-breakdown">Steam: €0 | Google Play: €0 | Stripe/PP: €0</div>
+                    <div class="text-[9px] sm:text-[10px] text-gray-400 font-medium mt-0.5" id="kpi-net-breakdown">Steam: €0 | Google Play: €0 | Stripe: €0 | PayPal: €0</div>
                 </div>
                 <div id="kpi-profit-card" class="bg-white p-3 sm:p-4 rounded-lg shadow-sm border-l-4 border-gray-300">
                     <div class="text-[10px] sm:text-xs text-gray-500 font-medium uppercase">Net Profit</div>
@@ -1308,7 +1308,7 @@ let globalDashboardState = {};
         let dashSort = { country: { col: 'roas', desc: true }, region: { col: 'roas', desc: true } };
 
         function loadDashboardData(raw) {
-            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalOtherNet = 0, totalSubs = 0, totalWishlistAdds = 0, totalInstalls = 0, totalFirstOpens = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
+            let totalSpend = 0, totalNet = 0, totalSteamNet = 0, totalGooglePlayNet = 0, totalStripeNet = 0, totalPaypalNet = 0, totalSubs = 0, totalWishlistAdds = 0, totalInstalls = 0, totalFirstOpens = 0, totalImp = 0, totalClicks = 0, totalDemoStarts = 0, totalDemoFinishes = 0;
             const dailyData = {}; 
             const countryAgg = {}; 
             const regionAgg = {};
@@ -1348,7 +1348,8 @@ regs.forEach(reg => {
                         totalNet += val;
                         if (source === 'steam') totalSteamNet += val;
                         else if (source === 'google_play') totalGooglePlayNet += val;
-                        else totalOtherNet += val;
+                        else if (source === 'stripe') totalStripeNet += val;
+                        else if (source === 'paypal') totalPaypalNet += val;
                     }
                     if (metric === 'subs') totalSubs += val;
                     if (metric === 'wishlists') totalWishlistAdds += val;
@@ -1407,7 +1408,7 @@ regs.forEach(reg => {
 
             document.getElementById('kpi-spend').innerText = `€${totalSpend.toFixed(2)}`;
             document.getElementById('kpi-net').innerText = `€${totalNet.toFixed(2)}`;
-            document.getElementById('kpi-net-breakdown').innerText = `Steam: €${totalSteamNet.toFixed(2)} | Google Play: €${totalGooglePlayNet.toFixed(2)} | Stripe/PP: €${totalOtherNet.toFixed(2)}`;
+            document.getElementById('kpi-net-breakdown').innerText = `Steam: €${totalSteamNet.toFixed(2)} | Google Play: €${totalGooglePlayNet.toFixed(2)} | Stripe: €${totalStripeNet.toFixed(2)} | PayPal: €${totalPaypalNet.toFixed(2)}`;
             
             const netProfit = totalNet - totalSpend;
             document.getElementById('kpi-profit').innerText = `€${netProfit.toFixed(2)}`;
