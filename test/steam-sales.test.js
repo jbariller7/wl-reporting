@@ -17,7 +17,7 @@ test('combines records across pages and preserves English, Arabic and Russian', 
   const result = await run([
     { max_id: '10', results: [record(), record(4786520)] },
     { max_id: '20', results: [record(), record(5185460), record(4205110, { gross_units_sold: 0, gross_units_returned: -1, net_units_sold: -1, gross_sales_usd: '0', net_sales_usd: '-20.8250' })] },
-    { max_id: '20', results: [] }
+    { max_id: '20' }
   ]);
   assert.equal(result.complete, true);
   assert.equal(result.rows.length, 3);
