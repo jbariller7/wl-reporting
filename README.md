@@ -77,7 +77,7 @@ See Valve's [IPartnerFinancialsService API documentation](https://partner.steamg
 
 ### Steam USD to EUR valuation from January 2026
 
-All live dashboard revenue, ROAS, profit, country, calendar, correlation and export calculations use a shared monthly Steam rate. A sales month uses the ECB USD reference rate on the following month's 29th, capped at February month-end, or the last published business day before that date. The effective EUR per USD is `0.996 / ECB_USD_PER_EUR`, including the user's 0.4% conversion fee. The existing 30% Steam share and 12.5% URSSAF are then applied once. Source sales remain in USD in the Google Sheet.
+All live dashboard revenue, ROAS, profit, country, calendar, correlation and export calculations use a shared monthly Steam rate. A sales month uses the ECB USD reference rate on the following month's 29th, capped at February month-end, or the last published business day before that date. The effective EUR per USD is `0.995 / ECB_USD_PER_EUR`, including the user's 0.5% conversion fee. The existing 30% Steam share and 12.5% URSSAF are then applied once. Source sales remain in USD in the Google Sheet.
 
 `steam-exchange-rates` refreshes the official ECB history, with a one-hour cache and a dated, verified snapshot fallback. Pending payout months use the latest available rate and are visibly marked provisional. Once the payment reference is available, the next refresh updates the historical valuation automatically. The dashboard's currency-conversion details show each sales month, payment date, reference date and effective rate. These are reference-based estimates, not reconciled bank payouts. Pre-2026 valuation and other platforms retain their existing conversion rules.
 

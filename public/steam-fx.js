@@ -1,5 +1,5 @@
 (function attachSteamFx(global) {
-  const FEE_RATE = 0.004;
+  const FEE_RATE = 0.005;
   const SOURCE = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml';
 
   function parseEcbUsd(xml) {
